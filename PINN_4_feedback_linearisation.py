@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
-from PINN_potential_func import *
+from PINN_gradient2func import *
 
 # For a nonlinear system: ẋ = f(x) + g(x)u
 # Feedback linearization seeks: u = α(x) + β(x)v 
