@@ -119,7 +119,7 @@ class PotentialNet(nn.Module):
 # endregion
 
 # ATT New loss function
-def proportional_ratio_loss(model, points, alpha=1.0, eps=1e-8):
+def proportional_ratio_loss(model, points, alpha=0.5, eps=1e-8):
 
     # print(f"Model device: {next(model.parameters()).device}")
     # print(f"Data device: {points.device}")
@@ -159,7 +159,16 @@ def proportional_ratio_loss(model, points, alpha=1.0, eps=1e-8):
     else:
         direction_loss = torch.tensor(0.0, device=points.device)
 
-    total_loss = alpha*cross_loss + (1-alpha)*direction_loss
+    # TODO add grad gradient loss
+    # SUB compute the gradient of two "gradient vector fields"
+    div_grad_h = compute_gradient(grad_h, points)
+    div_v_true = compute_gradient(v, points)
+
+    # NOTE 3: grad gradient loss (avoid zero grad everywhere)
+    div_cross_product = torch.cross(div_grad_h, div_v_true, dim=1)
+    div_grad_loss = torch.mean(torch.sum(div_cross_product**2, dim=1))
+
+    total_loss = alpha*cross_loss + (1 - alpha)*div_grad_loss + 0*direction_loss
 
     # region
     # # Avoid division by zero
@@ -265,7 +274,7 @@ for epoch in range(epochs):
         print(f"Early stopping at epoch {epoch}")
         break
 
-    if (epoch + 1) % 100 == 0:
+    if (epoch + 1) % 10 == 0:
         current_lr = optimiser.param_groups[0]['lr']
         print(f'Epoch [{epoch+1}/{epochs}], Total loss: {loss_val:.8f}, LR: {current_lr:.2e}')
 
