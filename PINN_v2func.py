@@ -119,7 +119,7 @@ class PotentialNet(nn.Module):
 # endregion
 
 # ATT New loss function
-def proportional_ratio_loss(model, points, alpha=0.5, eps=1e-8):
+def proportional_ratio_loss(model, points, alpha=0.8, eps=1e-8):
 
     # print(f"Model device: {next(model.parameters()).device}")
     # print(f"Data device: {points.device}")
@@ -142,48 +142,18 @@ def proportional_ratio_loss(model, points, alpha=0.5, eps=1e-8):
     cross_product = torch.cross(grad_h, v, dim=1)
     cross_loss = torch.mean(torch.sum(cross_product**2, dim=1))
 
-    # NOTE 2: Ratio consistency (improved legacy method)
-    v_mag = torch.norm(v, dim=1, keepdim=True)
-    grad_h_mag = torch.norm(grad_h, dim=1, keepdim=True)
+    # NOTE 2: Zero-grad loss
 
-    # Only consider points where v is not too small
-    valid_mask = (v_mag.squeeze() > eps) & (grad_h_mag.squeeze() > eps)
+    # zero_grad_loss = 0
+    max_values, _ = torch.max(grad_h, dim=1, keepdim=True) # keepdim=True to maintain the dimension
+    max_values = torch.abs(max_values)
+    zero_grad_loss = torch.mean(torch.sum(1/max_values, dim=1))
 
-    if valid_mask.sum() > 0:
-        v_normalised = v[valid_mask] / v_mag[valid_mask]
-        grad_h_normalised = grad_h[valid_mask] / grad_h_mag[valid_mask]
-
-        # Cosine similarity should be \pm 1 for parallel vectors
-        cosine_sim = torch.sum(v_normalised * grad_h_normalised, dim=1)
-        direction_loss = torch.mean((torch.abs(cosine_sim) - 1)**2)
-    else:
-        direction_loss = torch.tensor(0.0, device=points.device)
 
     # TODO add grad gradient loss
-    # SUB compute the gradient of two "gradient vector fields"
-    div_grad_h = compute_gradient(grad_h, points)
-    div_v_true = compute_gradient(v, points)
 
-    # NOTE 3: grad gradient loss (avoid zero grad everywhere)
-    div_cross_product = torch.cross(div_grad_h, div_v_true, dim=1)
-    div_grad_loss = torch.mean(torch.sum(div_cross_product**2, dim=1))
 
-    total_loss = alpha*cross_loss + (1 - alpha)*div_grad_loss + 0*direction_loss
-
-    # region
-    # # Avoid division by zero
-    # v_safe = v + eps * (v.abs() < eps)
-    # ratio = v_safe / grad_h
-
-    # # Loss: squared difference between all component ratios
-    # diff_01 = (ratio[:, 0] - ratio[:, 1])**2
-    # diff_02 = (ratio[:, 0] - ratio[:, 2])**2
-    # diff_12 = (ratio[:, 1] - ratio[:, 2])**2
-
-    # # Optional: mask out where any v_i is too small
-    # valid_mask = (v.abs() > eps).all(dim=1)
-    # loss = (diff_01 + diff_02 + diff_12)[valid_mask]
-    # endregion
+    total_loss = alpha*cross_loss + (1 - alpha)*zero_grad_loss
 
     return total_loss
 
@@ -214,12 +184,12 @@ optimiser = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-4)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimiser, mode='min', patience=500, factor=0.5)
 
 epochs = 3000
-num_train_points = 5000 # Number of points to sample for training
-
+num_train_points = 10000 # Number of points to sample for training
+point_range = 1
 # Define a domain for sampling points (e.g., a cube)
-x_min, x_max = -1.0, 1.0
-y_min, y_max = -1.0, 1.0
-z_min, z_max = -1.0, 1.0
+x_min, x_max = -point_range, point_range
+y_min, y_max = -point_range, point_range
+z_min, z_max = -point_range, point_range
 
 # TAG Training loop ---
 loss_history = []
@@ -328,17 +298,14 @@ def compute_proportionality_metrics(grad_h, v_true, eps=1e-6):
 
 cross_error, cosine_error = compute_proportionality_metrics(grad_h_pred_test, v_true_test)
 
-
 # SUPTAG Value printing
 print(f"\n--- Enhanced Accuracy Metrics ---")
 print(f"Mean Cross Product Error: {cross_error:.8f}")
 print(f"Mean Cosine Similarity Error: {cosine_error:.8f}")
 
-# SUB change this to print the raw value 
 n_points = grad_h_pred_test.shape[0]
 random_indices = torch.randperm(n_points)[:10]
 
-# FIXME
 # Safe data and figures
 current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 output_fig_dir = os.path.join('figures')
@@ -363,17 +330,20 @@ with open(safe_filename, 'w') as f:
         point_info = f"Point {i+1} (index {idx.item()}):"
         grad_line = f"  grad_h_pred: [{grad_pred[0]:8.5f}, {grad_pred[1]:8.5f}, {grad_pred[2]:8.5f}]"
         true_line = f"  v_true: [{v_true[0]:8.5f}, {v_true[1]:8.5f}, {v_true[2]:8.5f}]"
+        proportion_line = f"  dh/v: [{grad_pred[0]/v_true[0]:8.5f}, {grad_pred[1]/v_true[1]:8.5f}, {grad_pred[2]/v_true[2]:8.5f}]"
 
         # Print to console
         print(point_info)
         print(grad_line)
         print(true_line)
+        print(proportion_line)
         print()
 
         # Write to file
         f.write(point_info + "\n")
         f.write(grad_line + "\n")
-        f.write(true_line + "\n\n")
+        f.write(true_line + "\n")
+        f.write(proportion_line + "\n\n")
 
 # gradient_error = torch.mean((grad_h_pred_test - v_true_test)**2).item()
 # print(f"Mean Squared Error of Gradient: {gradient_error:.8f}")

@@ -63,7 +63,7 @@ class PotentialNet(nn.Module):
 
 # --- 3. Define the PINN Loss Function ---
 # TAG Loss function
-def pinn_loss(model, points, alpha=0.5):
+def pinn_loss(model, points, alpha=1.0):
     """
     Calculates the PINN loss by comparing the gradient of the model's output
     to the true vector field at the given points.
@@ -101,8 +101,8 @@ def pinn_loss(model, points, alpha=0.5):
 
 # --- 4. Training Setup ---
 model = PotentialNet().to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.99)) # TODO changed
-epochs = 5000
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.8, 0.89)) # TODO changed
+epochs = 10000
 num_train_points = 10000 # Number of points to sample for training
 
 # Define a domain for sampling points (e.g., a cube)
@@ -220,7 +220,8 @@ for i in range(sample_points.shape[0]):
     vp_true = v_true_sample[i].detach().cpu().numpy()
 
     print(f"Point: ({p[0]:.2f}, {p[1]:.2f}, {p[2]:.2f})")
-    print(f"  h_true: {hp_true:.4f}, h_pred: {hp_pred:.4f} (Diff: {abs(hp_true - hp_pred):.4f})")
+    print(f"  h_true: {hp_true:.4f}")
+    print(f"  h_pred: {hp_pred:.4f} (Diff: {abs(hp_true - hp_pred):.4f})")
     print(f"  v_true: [{vp_true[0]:.4f}, {vp_true[1]:.4f}, {vp_true[2]:.4f}]")
     print(f"  v_pred: [{vp_pred[0]:.4f}, {vp_pred[1]:.4f}, {vp_pred[2]:.4f}] (Diff: {np.linalg.norm(vp_true - vp_pred):.4f})")
 
