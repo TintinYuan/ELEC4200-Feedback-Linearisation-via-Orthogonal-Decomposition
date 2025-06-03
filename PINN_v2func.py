@@ -36,14 +36,14 @@ class PotentialNet(nn.Module):
         # # Xavier initialisation for sinusoidal activation
         # nn.init.xavier_uniform_(first_layer.weight)
         # nn.init.zeros_(first_layer.bias)
-        layers.extend([first_layer, nn.ReLU()])
+        layers.extend([first_layer, nn.Tanh()])
 
         # Hidden layers
         for _ in range(hidden_layers - 1):
             hidden_layer = nn.Linear(neurons_per_layer, neurons_per_layer)
             # nn.init.xavier_uniform_(hidden_layer.weight)
             # nn.init.zeros_(hidden_layer.bias)
-            layers.extend([hidden_layer, nn.ReLU()])
+            layers.extend([hidden_layer, nn.Tanh()])
 
         # Output layer
         output_layer = nn.Linear(neurons_per_layer, output_dim)
@@ -58,65 +58,6 @@ class PotentialNet(nn.Module):
         return self.sequential(x)
 
 # SUPTAG Define the PINN Loss Function ---
-# region
-# def pinn_loss(model, points, alpha=1.0):
-#     """
-#     Calculates the PINN loss by comparing the gradient of the model's output
-#     to the true vector field at the given points.
-#     """
-#     # NOTE: Just need one loss function that encaptures the loss ||v_i \nabla h_j = v_j \nabla h_i||
-#     # Ensure gradients are computed for the input points
-#     points.requires_grad_(True)
-
-#     # Get the model's output h(x, y, z)
-#     h_pred = model(points) # Shape: (N, 1)
-
-#     # Compute the gradient of h_pred with respect to the input points (x, y, z)
-#     # This is the core of the PINN for gradient matching
-#     grad_h_pred = torch.autograd.grad(
-#         inputs=points,          # The input tensor w.r.t. which gradients are computed
-#         outputs=h_pred,         # The output tensor from which gradients flow
-#         grad_outputs=torch.ones_like(h_pred), # Gradient of the output w.r.t. itself (for scalar outputs)
-#         create_graph=True,      # Needed to compute higher-order derivatives if necessary (not strictly here, but good practice)
-#         retain_graph=True       # Needed if we call autograd.grad or backward multiple times
-#     )[0] # autograd.grad returns a tuple, the first element is the gradient tensor. Shape: (N, 3)
-
-#     # Compute the target vector field v(x, y, z) at these points
-#     x, y, z = points[:, 0], points[:, 1], points[:, 2]
-#     v_target = v_true(x, y, z) # Shape: (N, 3)
-
-#     dim = v_target.shape[1]
-
-#     grad_loss = 0
-#     for i in range(dim - 1): # implementation of \|v_i \nabla h_j - v_j \nabla h_i\|
-#         proportion_diff = v_target[:, i] * grad_h_pred[:, i + 1] - v_target[:, i + 1] * grad_h_pred[:, i]
-#         grad_loss += torch.sum(torch.abs(proportion_diff))
-
-#     return grad_loss
-
-# def proportional_loss_constant(model, points):
-#     points.requires_grad_(True)
-#     h_pred = model(points)
-#     grad_h_pred = torch.autograd.grad(
-#         outputs=h_pred,
-#         inputs=points,
-#         grad_outputs=torch.ones_like(h_pred),
-#         create_graph=True,
-#         retain_graph=True
-#     )[0]
-
-#     x, y, z = points[:, 0], points[:, 1], points[:, 2]
-#     v = v_true(x, y, z)
-
-#     numerator = torch.sum(grad_h_pred * v, dim=1)
-#     denominator = torch.sum(v * v, dim=1) + 1e-8 # avoid divide by zero
-#     c_opt = numerator / denominator
-
-#     v_scaled = c_opt.unsqueeze(1) * v
-
-#     loss = torch.mean((grad_h_pred - v_scaled) ** 2)
-#     return loss
-# endregion
 
 # ATT New loss function
 def proportional_ratio_loss(model, points, alpha=0.8, eps=1e-8):
