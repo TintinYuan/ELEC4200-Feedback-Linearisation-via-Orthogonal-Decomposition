@@ -67,7 +67,7 @@ def compute_gradient(vector_field, points, delta = 1e-5):
     return div
 
 
-def compute_gradient_of_scalar(scalar_field, points, h=1e-4):
+def compute_gradient_of_scalar(scalar_field, points, epsilon=1e-4):
     """
     Compute gradient of a scalar field using finite differences
     scalar_field: (N,) tensor - scalar values at each point
@@ -87,7 +87,7 @@ def compute_gradient_of_scalar(scalar_field, points, h=1e-4):
         # Approximate gradients using adjacent points
         for dim in range(3):  # x, y, z dimensions
             if i > 0 and i < N-1:
-                dx = points[i+1, dim] - points[i-1, dim] + eps
+                dx = points[i+1, dim] - points[i-1, dim] + epsilon
                 df = scalar_field[i+1] - scalar_field[i-1]
                 grad_scalar[i, dim] = df / dx
     
@@ -120,7 +120,7 @@ class CurlFreePKVLoss(torch.nn.Module):
 
         N, n_dims = x_batch.shape
 
-        if K_output.ndim == 1:
+        if K_output.ndim == 1: # number of dimension
             K_output = K_output.unsqueeze(1) # Ensure K_output is (N, 1)
 
         # Compute gradients of K w.r.t. x_batch (dK/dx_i)
@@ -155,6 +155,101 @@ class CurlFreePKVLoss(torch.nn.Module):
         loss = torch.mean(sum_sq_residuals_per_sample)
 
         return loss
+    
+# TODO Curl-free pv loss
+class CurlFreepvLoss(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, K_output, x_batch, v_batch, grad_v_batch):
+        """
+        Calculates the p*v to be curl-free, with a fixed point value K(x_0) = 1
+
+        Args:
+            K_output (Tensor): Output of the network K(x) for the batch, shape (N, 1) or (N, ). N is the batch size
+            x_batch (Tensor): Input coordinates for the batch, shape (N, n_dims). Must have requires_grad=True.
+            v_batch (Tensor): Known vector field v(x) evaluated at x_batch, shape (N, n_dims).
+            grad_v_batch (Tensor): Jacobian of v(x) evaluated at x_batch, where grad_v_batch[s, i, j] is dv_i/dx_j for sample s. So it's three dimensional, shape (N, n_dims, d_dims)
+
+        Returns:
+            (Tensor): Scalar loss value.
+        """
+
+        N, n_dims = x_batch.shape
+
+        if K_output.ndim == 1: # number of dimension
+            K_output = K_output.unsqueeze(1)
+
+        grad_K_batch = torch.autograd.grad(
+            outputs=K_output,
+            inputs=x_batch,
+            grad_outputs=torch.ones_like(K_output), # if the output is a scalar, it doesn't change anything
+            create_graph=True,
+            retain_graph=True # if computing only first-order gradients, this can be set false
+        )[0]
+
+        term1_dKdxj_vi = torch.einsum('sj,si->sij', grad_K_batch, v_batch)
+
+        T_tensor = term1_dKdxj_vi + grad_v_batch
+
+        R_tensor = T_tensor - T_tensor.transpose(1, 2)
+
+        squared_residuals = R_tensor**2
+
+        if n_dims < 2: # No off-diagonal element to sum
+            return torch.tensor(0.0, device=x_batch.device, required_grad=True)
+        
+        # generates the indices of the upper triangular part of a 2D matrix
+        row_indices, col_indices = torch.triu_indices(n_dims, n_dims, offset=1)
+
+        selected_squared_residuals = squared_residuals[:, row_indices, col_indices]
+
+        # Select the upper triangle elements for each sample
+        sum_sq_residuals_per_sample = torch.sum(selected_squared_residuals, dim=1)
+
+        # Mean loss over the batch
+        loss = torch.mean(sum_sq_residuals_per_sample)
+
+        return loss
+    
+
+class PointConstraintLoss(torch.nn.Module):
+    def __init__(self, constraint_points, constraint_values):
+        """
+        Args: 
+            constraint_points (Tensor or List): Points where constraints apply, shape (N, n_dims)
+            constraint_values (Tensor or List): Target values at constraint points, shape (N, )
+        """
+        super().__init__()
+        if isinstance(constraint_points, list):
+            constraint_points = torch.tensor(constraint_points, dtype=torch.float32)
+        if isinstance(constraint_values, list):
+            constraint_values = torch.tensor(constraint_values, dtype=torch.float32)
+
+        self.register_buffer('constraint_points', constraint_points)
+        self.register_buffer('constraint_values', constraint_values)
+
+    def forward(self, model):
+        """
+        Args:
+            model: Neural network model
+
+        Returns:
+            Constraint loss
+        """
+        # Get device from model's first parameter
+        device = next(model.parameters()).device
+
+        # Move constraint_points to same device
+        constraint_points = self.constraint_points.to(device).clone().detach().requires_grad_(True)
+        constraint_values = self.constraint_values.to(device)
+        model_output = model(constraint_points)
+
+        if model_output.ndim == 2 and model_output.shape[1] == 1:
+            model_output = model_output.squeeze(1)
+
+        constraint_loss = torch.mean((model_output - constraint_values)**2)
+        return constraint_loss
     
 
 def v_jacobian(v_true, x_points):

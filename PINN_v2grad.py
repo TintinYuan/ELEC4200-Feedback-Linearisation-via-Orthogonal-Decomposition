@@ -49,7 +49,18 @@ def vector_v(x_single_torch):
 # Sample training loop
 model = KNetwork().to(device)
 optimiser = torch.optim.AdamW(model.parameters(), lr=1e-4)
-loss_fn = CurlFreePKVLoss()
+
+# Specify curl-free loss
+curl_loss_fn = CurlFreepvLoss()
+
+# Specify point constraint loss
+point_constraint_loss_fn = PointConstraintLoss(
+    constraint_points=[[1.0, 1.0, 1.0]],
+    constraint_values=[1.0]
+)
+
+# Point constraint weight
+constraint_weight = 1.0
 
 # TODO Train step
 def train_step(x_batch):
@@ -70,14 +81,16 @@ def train_step(x_batch):
     grad_v_batch = v_jacobian(vector_v, x_for_jacobian)
 
     # Compute loss
-    loss = loss_fn(K_output, x_batch, v_batch, grad_v_batch)
+    curl_loss = curl_loss_fn(K_output, x_batch, v_batch, grad_v_batch)
+    constraint_loss = point_constraint_loss_fn(model)
+    total_loss = curl_loss + constraint_weight * constraint_loss
 
     # Backward pass
     optimiser.zero_grad()
-    loss.backward()
+    total_loss.backward()
     optimiser.step()
 
-    return loss.item()
+    return total_loss.item()
 
 epochs = 2000
 num_train_points = 1000
@@ -146,39 +159,3 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
 
-
-# def compute_curl(F, coords):
-#     grads = []
-#     for i in range(3):
-#         grad = torch.autograd.grad(F[:, i], coords, grad_outputs=torch.ones_like(F[:, i]), create_graph=True)[0]
-#         grads.append(grad)
-#     curl_x = grads[1][:, 2] - grads[2][:, 1]
-#     curl_y = grads[2][:, 0] - grads[0][:, 2]
-#     curl_z = grads[0][:, 1] - grads[1][:, 0]
-#     return torch.stack([curl_x, curl_y, curl_z], dim=-1)
-
-
-# for epoch in range(epochs):
-#     coords = torch.rand(num_train_points, 3, device=device) # (x, y, z) in [-1, 1]
-#     coords[:, 0] = coords[:, 0] * (x_max - x_min) + x_min
-#     coords[:, 1] = coords[:, 1] * (y_max - y_min) + y_min
-#     coords[:, 2] = coords[:, 2] * (z_max - z_min) + z_min
-
-#     coords.requires_grad_(True)
-
-#     x, y, z = coords[:, 0], coords[:, 1], coords[:, 2]
-#     f = model(coords).squeeze()
-#     v = vector_v(x, y, z)
-#     F = (f.unsqueeze(-1) * v)
-
-#     curl = compute_curl(F, coords)
-#     loss = (curl**2).sum(dim=1).mean()
-
-#     loss_history.append(loss.item())
-
-#     optimiser.zero_grad()
-#     loss.backward()
-#     optimiser.step()
-
-#     if (epoch+1) % 100 == 0:
-#         print(f"Step {epoch}, Loss: {loss.item():.6f}")
