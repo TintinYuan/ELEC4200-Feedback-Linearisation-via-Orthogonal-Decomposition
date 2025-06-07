@@ -51,10 +51,10 @@ model = KNetwork().to(device)
 optimiser = torch.optim.AdamW(model.parameters(), lr=1e-4)
 
 # Specify curl-free loss
-curl_loss_fn = CurlFreepvLoss()
+curl_loss_fn = v2grad_CurlFreepvLoss()
 
 # Specify point constraint loss
-point_constraint_loss_fn = PointConstraintLoss(
+point_constraint_loss_fn = v2grad_PointConstraintLoss(
     constraint_points=[[1.0, 1.0, 1.0]],
     constraint_values=[1.0]
 )

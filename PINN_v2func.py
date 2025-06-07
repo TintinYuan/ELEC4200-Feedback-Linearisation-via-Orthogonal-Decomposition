@@ -51,52 +51,11 @@ class PotentialNet(nn.Module):
         # nn.init.zeros_(output_layer.bias)
         layers.append(output_layer)
 
-        self.sequential = nn.Sequential(*layers)
+        self.sequential = nn.Sequential(*layers) # here * is a unpacking argument
 
     def forward(self, x):
         # x is a tensor of shape (N, input_dim)
         return self.sequential(x)
-
-# SUPTAG Define the PINN Loss Function ---
-
-# ATT New loss function
-def proportional_ratio_loss(model, points, alpha=0.8, eps=1e-8):
-
-    # print(f"Model device: {next(model.parameters()).device}")
-    # print(f"Data device: {points.device}")
-    # points.requires_grad_(True)
-    h_pred = model(points)
-
-    grad_h = torch.autograd.grad(
-        outputs=h_pred,
-        inputs=points,
-        grad_outputs=torch.ones_like(h_pred),
-        create_graph=True,
-        retain_graph=True
-    )[0]  # shape (N, 3)
-
-    x, y, z = points[:, 0], points[:, 1], points[:, 2]
-    v = v_true(x, y, z)  # shape (N, 3)
-
-    # NOTE 1: Cross product approach for proportionality 
-    # If grad_h = c * v, then grad_h x v = 0
-    cross_product = torch.cross(grad_h, v, dim=1)
-    cross_loss = torch.mean(torch.sum(cross_product**2, dim=1))
-
-    # NOTE 2: Zero-grad loss
-
-    # zero_grad_loss = 0
-    max_values, _ = torch.max(grad_h, dim=1, keepdim=True) # keepdim=True to maintain the dimension
-    max_values = torch.abs(max_values)
-    zero_grad_loss = torch.mean(torch.sum(1/max_values, dim=1))
-
-
-    # TODO add grad gradient loss
-
-
-    total_loss = alpha*cross_loss + (1 - alpha)*zero_grad_loss
-
-    return total_loss, cross_loss, zero_grad_loss
 
 # TAG Training Setup ---
 model = PotentialNet().to(device)
@@ -123,6 +82,10 @@ if torch.cuda.is_available():
 
 optimiser = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-4)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimiser, mode='min', patience=500, factor=0.5)
+
+# Define loss function through classes
+cross_loss_fn = v2func_cross_loss()
+zero_grad_loss_fn = v2func_zero_grad_loss()
 
 epochs = 3000
 num_train_points = 10000 # Number of points to sample for training
@@ -156,11 +119,19 @@ for epoch in range(epochs):
     train_points.requires_grad_(True)
     # No need to call .requires_grad_(True) here, done in the loss function for clarity
 
+    x_batch = train_points
+    v_batch = v_pytorch_batch(v_true_tensor, x_batch)
     # print(f"Model device: {next(model.parameters()).device}")
     # print(f"Data device: {train_points.device}")
+    K_output = model(x_batch)
 
-    # Calculate loss
-    loss, cross_loss, zero_grad_loss = proportional_ratio_loss(model, train_points) # NOTE: here the loss is the combined_loss!
+    # TAG Calculate loss
+
+    cross_loss_val = cross_loss_fn(K_output, x_batch, v_batch)
+    zero_grad_loss_val = zero_grad_loss_fn(K_output, x_batch)
+
+    alpha = 0.8
+    loss = alpha*cross_loss_val + (1 - alpha)*zero_grad_loss_val
 
     # Backpropagation and optimization
     optimiser.zero_grad() # Clear previous gradients
@@ -177,10 +148,10 @@ for epoch in range(epochs):
     total_loss_val = loss.item()
     total_loss_history.append(total_loss_val)
 
-    cross_loss_val = cross_loss.item()
+    cross_loss_val = cross_loss_val.item()
     cross_loss_history.append(cross_loss_val)
 
-    zero_grad_loss_val = zero_grad_loss.item()
+    zero_grad_loss_val = zero_grad_loss_val.item()
     zero_grad_loss_history.append(zero_grad_loss_val)
 
     # Early stopping check
@@ -224,27 +195,6 @@ with torch.enable_grad():
 # Compute the true values at test points
 h_true_test = h_true(test_points[:, 0], test_points[:, 1], test_points[:, 2])
 v_true_test = v_true(test_points[:, 0], test_points[:, 1], test_points[:, 2])
-
-# 
-# Enhanced accuracy metrics
-def compute_proportionality_metrics(grad_h, v_true, eps=1e-6):
-    # Cross product magnitude (should be 0 for proportional vectors)
-    cross_prod = torch.cross(grad_h, v_true, dim=1)
-    cross_magnitude = torch.norm(cross_prod, dim=1)
-    mean_cross_error = torch.mean(cross_magnitude).item()
-
-    # Cosine similarity (should be \pm 1)
-    grad_h_norm = torch.norm(grad_h, dim=1)
-    v_norm = torch.norm(v_true, dim=1)
-
-    valid_mask = (grad_h_norm > eps) & (v_norm > eps)
-    if valid_mask.sum() > 0:
-        cosine_sim = torch.sum(grad_h[valid_mask] * v_true[valid_mask], dim=1)/(grad_h_norm[valid_mask] * v_norm[valid_mask])
-        mean_cosine_error = torch.mean((torch.abs(cosine_sim) - 1)**2).item()
-    else:
-        mean_cosine_error = float('inf')
-
-    return mean_cross_error, mean_cosine_error
 
 cross_error, cosine_error = compute_proportionality_metrics(grad_h_pred_test, v_true_test)
 

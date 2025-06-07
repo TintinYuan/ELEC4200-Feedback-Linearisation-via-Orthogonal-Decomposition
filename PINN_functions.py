@@ -22,6 +22,18 @@ def v_true(x, y, z):
     dv_dz = torch.cos(z)
     return torch.stack([dv_dx, dv_dy, dv_dz], dim=-1)
 
+def v_true_tensor(x_single_tensor):
+    """The true conservative vector field (gradient of h_true)."""
+    # Compute partial derivatives symbolically or manually
+    x = x_single_tensor[0]
+    y = x_single_tensor[1]
+    z = x_single_tensor[2]
+
+    dv_dx = 2 * x
+    dv_dy = 3 * y**2
+    dv_dz = torch.cos(z)
+    return torch.stack([dv_dx, dv_dy, dv_dz], dim=-1)
+
 def v_true2(x, y, z):
     c1 = 2.0
     c2 = 1.0
@@ -33,6 +45,25 @@ def v_true2(x, y, z):
     dv_dy = c1 * 2 * theta * y
     dv_dz = c1 * 2 * c * z
     return torch.stack([dv_dx, dv_dy, dv_dz], dim=-1)
+
+def v_pytorch_batch(v_pytorch_single, x_batch):
+    """Batch version of vector field"""
+    return torch.func.vmap(v_pytorch_single)(x_batch)
+
+def v_jacobian(v_true, x_points):
+    """
+    Args: 
+        v_true: tensor function of vector field v
+        x_points: cloned and isolated x_points for AD operation
+
+    Returns:
+        grad_v: Calculated jacobian matrix of v
+    """
+    
+    jacobian = torch.func.jacrev(v_true)
+    grad_v = torch.func.vmap(jacobian)(x_points)
+
+    return grad_v
 
 
 def compute_gradient(vector_field, points, delta = 1e-5):
@@ -93,14 +124,30 @@ def compute_gradient_of_scalar(scalar_field, points, epsilon=1e-4):
     
     return grad_scalar
 
-def v_pytorch_batch(v_pytorch_single, x_batch):
-    """Batch version of vector field"""
-    return torch.func.vmap(v_pytorch_single)(x_batch)
+# Enhanced accuracy metrics
+def compute_proportionality_metrics(grad_h, v_true, eps=1e-6):
+    # Cross product magnitude (should be 0 for proportional vectors)
+    cross_prod = torch.cross(grad_h, v_true, dim=1)
+    cross_magnitude = torch.norm(cross_prod, dim=1)
+    mean_cross_error = torch.mean(cross_magnitude).item()
+
+    # Cosine similarity (should be \pm 1)
+    grad_h_norm = torch.norm(grad_h, dim=1)
+    v_norm = torch.norm(v_true, dim=1)
+
+    valid_mask = (grad_h_norm > eps) & (v_norm > eps)
+    if valid_mask.sum() > 0:
+        cosine_sim = torch.sum(grad_h[valid_mask] * v_true[valid_mask], dim=1)/(grad_h_norm[valid_mask] * v_norm[valid_mask])
+        mean_cosine_error = torch.mean((torch.abs(cosine_sim) - 1)**2).item()
+    else:
+        mean_cosine_error = float('inf')
+
+    return mean_cross_error, mean_cosine_error
 
 
-# %% Function below for testing behaviour
+# SUPTAG Loss functions go below:
 
-class CurlFreePKVLoss(torch.nn.Module):
+class v2grad_CurlFreePKVLoss(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
@@ -156,8 +203,8 @@ class CurlFreePKVLoss(torch.nn.Module):
 
         return loss
     
-# TODO Curl-free pv loss
-class CurlFreepvLoss(torch.nn.Module):
+# TAG Curl-free v2grad loss
+class v2grad_CurlFreepvLoss(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
@@ -212,8 +259,8 @@ class CurlFreepvLoss(torch.nn.Module):
 
         return loss
     
-
-class PointConstraintLoss(torch.nn.Module):
+# TAG point constraint v2grad loss
+class v2grad_PointConstraintLoss(torch.nn.Module):
     def __init__(self, constraint_points, constraint_values):
         """
         Args: 
@@ -251,18 +298,72 @@ class PointConstraintLoss(torch.nn.Module):
         constraint_loss = torch.mean((model_output - constraint_values)**2)
         return constraint_loss
     
+# TAG v2func cross loss
+class v2func_cross_loss(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
 
-def v_jacobian(v_true, x_points):
-    """
-    Args: 
-        v_true: tensor function of vector field v
-        x_points: cloned and isolated x_points for AD operation
 
-    Returns:
-        grad_v: Calculated jacobian matrix of v
-    """
+    def forward(self, K_output, x_batch, v_batch):
+        """
+        Calculate the proportional loss of the neural network gradient h_grad with the known v
+
+        Args:
+            K_output (Tensor): Output of the network K(x) for the batch, shape (N, 1) or (N, ). N is the batch size
+            x_batch (Tensor): Input coordinates for the batch, shape (N, n_dims). Must have requires_grad=True.
+            v_batch (Tensor): Known vector field v(x) evaluated at x_batch, shape (N, n_dims).
+
+        Returns:
+            (Tensor): Scalar loss value.
+        """
+
+        if K_output.ndim == 1: # number of dimension
+            K_output = K_output.unsqueeze(1) # Ensure K_output is (N, 1)
+
+        grad_h = torch.autograd.grad(
+            outputs=K_output,
+            inputs=x_batch,
+            grad_outputs=torch.ones_like(K_output),
+            create_graph=True,
+            retain_graph=True
+        )[0]
+
+        x, y, z = x_batch[:, 0], x_batch[:, 1], x_batch[:, 2]
+
+        cross_product = torch.cross(grad_h, v_batch, dim=1)
+        cross_loss = torch.mean(torch.sum(cross_product**2, dim=1))
+
+        return cross_loss
     
-    jacobian = torch.func.jacrev(v_true)
-    grad_v = torch.func.vmap(jacobian)(x_points)
+class v2func_zero_grad_loss(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
 
-    return grad_v
+    def forward(self, K_output, x_batch):
+        """
+        Calculate the loss of infinity norm to avoid trivial zero solution
+
+        Args:
+            K_output (Tensor): Output of the network K(x) for the batch, shape (N, 1) or (N, ). N is the batch size
+            x_batch (Tensor): Input coordinates for the batch, shape (N, n_dims). Must have requires_grad=True.
+        Returns:
+            (Tensor): Loss value of infinity norm
+        """
+
+        if K_output.ndim == 1:
+            K_output = K_output.unsqueeze(1)
+
+        grad_h = torch.autograd.grad(
+            outputs=K_output,
+            inputs=x_batch,
+            grad_outputs=torch.ones_like(K_output),
+            create_graph=True,
+            retain_graph=True
+        )[0]
+
+        max_values, _ = torch.max(grad_h, dim=1, keepdim=True)
+        max_values = torch.abs(max_values)
+        zero_grad_loss = torch.mean(torch.sum(1/max_values, dim=1))
+
+        return zero_grad_loss
+
