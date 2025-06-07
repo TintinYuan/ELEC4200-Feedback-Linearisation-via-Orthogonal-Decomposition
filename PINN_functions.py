@@ -145,6 +145,19 @@ def compute_proportionality_metrics(grad_h, v_true, eps=1e-6):
     return mean_cross_error, mean_cosine_error
 
 
+def generate_training_data(domain, num_train_points):
+    """Generate random training samples"""
+    [x_min, x_max], [y_min, y_max], [z_min, z_max] = domain
+
+
+    coords = torch.rand(num_train_points, 3)
+    coords[:, 0] = coords[:, 0] * (x_max - x_min) + x_min
+    coords[:, 1] = coords[:, 1] * (y_max - y_min) + y_min
+    coords[:, 2] = coords[:, 2] * (z_max - z_min) + z_min
+
+    return coords
+
+
 # SUPTAG Loss functions go below:
 
 class v2grad_CurlFreePKVLoss(torch.nn.Module):

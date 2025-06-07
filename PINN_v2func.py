@@ -94,6 +94,7 @@ point_range = 1
 x_min, x_max = -point_range, point_range
 y_min, y_max = -point_range, point_range
 z_min, z_max = -point_range, point_range
+domain = [[x_min, x_max], [y_min, y_max], [z_min, z_max]]
 
 # TAG Training loop ---
 total_loss_history = []
@@ -111,15 +112,8 @@ for epoch in range(epochs):
     model.train()
 
     # Generate random training points within the domain
-    # We need to make sure the points tensor can have gradients attached
-    train_points = torch.rand(num_train_points, 3, device=device)
-    train_points[:, 0] = train_points[:, 0] * (x_max - x_min) + x_min
-    train_points[:, 1] = train_points[:, 1] * (y_max - y_min) + y_min
-    train_points[:, 2] = train_points[:, 2] * (z_max - z_min) + z_min
-    train_points.requires_grad_(True)
-    # No need to call .requires_grad_(True) here, done in the loss function for clarity
-
-    x_batch = train_points
+    x_batch = generate_training_data(domain, num_train_points)
+    x_batch = x_batch.to(device).requires_grad_(True)
     v_batch = v_pytorch_batch(v_true_tensor, x_batch)
     # print(f"Model device: {next(model.parameters()).device}")
     # print(f"Data device: {train_points.device}")

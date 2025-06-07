@@ -99,16 +99,7 @@ num_train_points = 1000
 x_min, x_max = -1.0, 1.0
 y_min, y_max = -1.0, 1.0
 z_min, z_max = -1.0, 1.0
-
-
-def generate_training_data(num_train_points=1000):
-    """Generate random training samples"""
-    coords = torch.rand(num_train_points, 3, device=device)
-    coords[:, 0] = coords[:, 0] * (x_max - x_min) + x_min
-    coords[:, 1] = coords[:, 1] * (y_max - y_min) + y_min
-    coords[:, 2] = coords[:, 2] * (z_max - z_min) + z_min
-
-    return coords
+domain = [[x_min, x_max], [y_min, y_max], [z_min, z_max]]
 
 def train_model(num_epochs=2000, batch_size=128):
     model.train()
@@ -120,7 +111,7 @@ def train_model(num_epochs=2000, batch_size=128):
     for epoch in range(num_epochs):
 
         # Generate training batch
-        x_batch = generate_training_data(batch_size)
+        x_batch = generate_training_data(domain, batch_size)
 
         # Training step
         total_loss_value, curl_loss_value, constraint_loss_value = train_step(x_batch)
