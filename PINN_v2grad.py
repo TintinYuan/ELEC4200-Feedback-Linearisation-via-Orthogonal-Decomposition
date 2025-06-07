@@ -60,7 +60,7 @@ point_constraint_loss_fn = PointConstraintLoss(
 )
 
 # Point constraint weight
-constraint_weight = 1.0
+constraint_weight = 10.0
 
 # TODO Train step
 def train_step(x_batch):
@@ -90,7 +90,7 @@ def train_step(x_batch):
     total_loss.backward()
     optimiser.step()
 
-    return total_loss.item()
+    return total_loss.item(), curl_loss.item(), constraint_weight * constraint_loss.item()
 
 epochs = 2000
 num_train_points = 1000
@@ -100,7 +100,6 @@ x_min, x_max = -1.0, 1.0
 y_min, y_max = -1.0, 1.0
 z_min, z_max = -1.0, 1.0
 
-loss_history = []
 
 def generate_training_data(num_train_points=1000):
     """Generate random training samples"""
@@ -114,24 +113,33 @@ def generate_training_data(num_train_points=1000):
 def train_model(num_epochs=2000, batch_size=128):
     model.train()
 
+    total_loss_history = []
+    curl_loss_history = []
+    constraint_loss_history = []
+
     for epoch in range(num_epochs):
 
         # Generate training batch
         x_batch = generate_training_data(batch_size)
 
         # Training step
-        loss_value = train_step(x_batch)
-        loss_history.append(loss_value)
+        total_loss_value, curl_loss_value, constraint_loss_value = train_step(x_batch)
+        
+        # Store all loss components
+        total_loss_history.append(total_loss_value)
+        curl_loss_history.append(curl_loss_value)
+        constraint_loss_history.append(constraint_loss_value)
 
         if epoch % 100 == 0:
-            print(f'Epoch {epoch}, Loss: {loss_value:.6f}')
+            print(f'Epoch {epoch}, Total Loss: {total_loss_value:.3f}, '
+                  f'Curl Loss: {curl_loss_value:.3f}, Constraint Loss: {constraint_loss_value:.3f}')
 
-    return model
+    return model, total_loss_history, curl_loss_history, constraint_loss_history
 
 
 if __name__ == "__main__":
     # Train the model
-    trained_model = train_model(num_epochs=3000, batch_size=128)
+    trained_model, total_losses, curl_losses, constraint_losses = train_model(num_epochs=3000, batch_size=128)
 
     # Test the trained model
     with torch.no_grad():
@@ -148,12 +156,14 @@ if __name__ == "__main__":
 
     plt.figure(figsize=(12, 6))
 
-    plt.semilogy(loss_history, label='Combined Loss', linewidth=2)
+    plt.semilogy(total_losses, label='Total loss', linewidth=2, color='blue')
+    plt.semilogy(curl_losses, label='Curl loss', linewidth=2, color='red')
+    plt.semilogy(constraint_losses, label='Constraint loss', linewidth=2, color='green')
 
     plt.xlabel("Epoch", fontsize=12)
     plt.ylabel("Loss Values (log scale)", fontsize=12)
     plt.title("Training Loss History", fontsize=14)
-
+    plt.legend(fontsize=10)
     plt.grid(True, which="both", ls='-', alpha=0.2)
 
     plt.tight_layout()

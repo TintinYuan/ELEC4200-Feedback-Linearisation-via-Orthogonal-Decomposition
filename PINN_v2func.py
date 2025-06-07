@@ -96,7 +96,7 @@ def proportional_ratio_loss(model, points, alpha=0.8, eps=1e-8):
 
     total_loss = alpha*cross_loss + (1 - alpha)*zero_grad_loss
 
-    return total_loss
+    return total_loss, cross_loss, zero_grad_loss
 
 # TAG Training Setup ---
 model = PotentialNet().to(device)
@@ -133,7 +133,10 @@ y_min, y_max = -point_range, point_range
 z_min, z_max = -point_range, point_range
 
 # TAG Training loop ---
-loss_history = []
+total_loss_history = []
+cross_loss_history = []
+zero_grad_loss_history = []
+
 best_loss = float('inf')
 patience_counter = 0
 early_stop_patience = 2000
@@ -157,7 +160,7 @@ for epoch in range(epochs):
     # print(f"Data device: {train_points.device}")
 
     # Calculate loss
-    loss = proportional_ratio_loss(model, train_points) # NOTE: here the loss is the combined_loss!
+    loss, cross_loss, zero_grad_loss = proportional_ratio_loss(model, train_points) # NOTE: here the loss is the combined_loss!
 
     # Backpropagation and optimization
     optimiser.zero_grad() # Clear previous gradients
@@ -171,12 +174,18 @@ for epoch in range(epochs):
     scheduler.step(loss)
 
     # Store and print loss
-    loss_val = loss.item()
-    loss_history.append(loss_val)
+    total_loss_val = loss.item()
+    total_loss_history.append(total_loss_val)
+
+    cross_loss_val = cross_loss.item()
+    cross_loss_history.append(cross_loss_val)
+
+    zero_grad_loss_val = zero_grad_loss.item()
+    zero_grad_loss_history.append(zero_grad_loss_val)
 
     # Early stopping check
-    if loss_val < best_loss:
-        best_loss = loss_val
+    if total_loss_val < best_loss:
+        best_loss = total_loss_val
         patience_counter = 0
     else:
         patience_counter += 1
@@ -187,7 +196,7 @@ for epoch in range(epochs):
 
     if (epoch + 1) % 10 == 0:
         current_lr = optimiser.param_groups[0]['lr']
-        print(f'Epoch [{epoch+1}/{epochs}], Total loss: {loss_val:.8f}, LR: {current_lr:.2e}')
+        print(f'Epoch [{epoch+1}/{epochs}], Total loss: {total_loss_val:.8f}, LR: {current_lr:.2e}')
 
 print("Training finished.")
 
@@ -294,13 +303,15 @@ plt.figure(figsize=(15, 5))
 
 # Loss history
 plt.subplot(1, 3, 1)
-if len(loss_history) > 100:
+if len(total_loss_history) > 100:
     # Show both full history and recent history
-    plt.semilogy(loss_history, alpha=0.7, linewidth=1)
-    plt.semilogy(loss_history[-1000:], linewidth=2, color='red', label='Recent')
+    plt.semilogy(total_loss_history, alpha=0.7, linewidth=1, color='blue', label='Total loss')
+    # plt.semilogy(total_loss_history[-1000:], linewidth=2, color='red', label='Recent')
+    plt.semilogy(cross_loss_history, linewidth=1, color='red', label='Cross loss')
+    plt.semilogy(zero_grad_loss_history, linewidth=1, color='green', label='Zero-grad loss')
     plt.legend()
 else:
-    plt.semilogy(loss_history, linewidth=2)
+    plt.semilogy(total_loss_history, linewidth=2)
 
 plt.xlabel("Eproch")
 plt.ylabel("Loss (log scale)")
