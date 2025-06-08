@@ -41,7 +41,24 @@ def v_true2(x, y, z):
     theta = 1.44
     k = 1.0
 
-    dv_dx = 0
+    dv_dx = 0 * x
+    dv_dy = c1 * 2 * theta * y
+    dv_dz = c1 * 2 * c * z
+    return torch.stack([dv_dx, dv_dy, dv_dz], dim=-1)
+
+def v_true2_tensor(x_single_tensor):
+
+    x = x_single_tensor[0]
+    y = x_single_tensor[1]
+    z = x_single_tensor[2]
+
+    c1 = 2.0
+    c2 = 1.0
+    c = 3.0
+    theta = 1.44
+    k = 1.0
+
+    dv_dx = 0 * x
     dv_dy = c1 * 2 * theta * y
     dv_dz = c1 * 2 * c * z
     return torch.stack([dv_dx, dv_dy, dv_dz], dim=-1)

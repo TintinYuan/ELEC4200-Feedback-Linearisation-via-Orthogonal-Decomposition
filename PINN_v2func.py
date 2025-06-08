@@ -114,7 +114,7 @@ for epoch in range(epochs):
     # Generate random training points within the domain
     x_batch = generate_training_data(domain, num_train_points)
     x_batch = x_batch.to(device).requires_grad_(True)
-    v_batch = v_pytorch_batch(v_true_tensor, x_batch)
+    v_batch = v_pytorch_batch(v_true2_tensor, x_batch)
     # print(f"Model device: {next(model.parameters()).device}")
     # print(f"Data device: {train_points.device}")
     K_output = model(x_batch)
@@ -188,7 +188,7 @@ with torch.enable_grad():
 
 # Compute the true values at test points
 h_true_test = h_true(test_points[:, 0], test_points[:, 1], test_points[:, 2])
-v_true_test = v_true(test_points[:, 0], test_points[:, 1], test_points[:, 2])
+v_true_test = v_true2(test_points[:, 0], test_points[:, 1], test_points[:, 2])
 
 cross_error, cosine_error = compute_proportionality_metrics(grad_h_pred_test, v_true_test)
 
