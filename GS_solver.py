@@ -2,30 +2,7 @@ import numpy as np
 import sympy as sp
 from sympy import Matrix, GramSchmidt, latex, pprint, diff, integrate
 
-def gram_schmidt(V):
-    """
-    Compute the vector that is orthogonal to the first n-1 columns of V
-
-    input:
-        V: n by n matrix consist of [g, ad_fg, ad_f^2g, ... , ad_f^{n-1}g]
-
-    output: 
-        dh: n by 1 vector that is orthogonal to V[:-1]
-    """
-    n_cols = V.shape[1] if hasattr(V, 'shape') else len(V)
-    U = []
-
-    for i in range(n_cols):
-        u = V[i]
-        for j in range(i):
-            uj = U[j]
-            vi = V[i]
-            dot_uj_vi = sum(uj[j] * vi[j] for j in range(len(vi)))
-            dot_uj_uj = sum(uj[j] * uj[j] for j in range(len(uj)))
-            proj = (dot_uj_vi/dot_uj_uj)*uj
-            u = u - proj
-        U.append(u)
-    return U[-1]
+from utils import gram_schmidt
 
 
 def dot_product_check(u, V):
