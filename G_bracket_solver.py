@@ -40,7 +40,7 @@ print(product)
 # SUPTAG Define the scalar polynomial p(theta, x)
 
 # Generate all monomials of total degree <= n
-mono_degree = 3
+mono_degree = 2
 monos = itermonomials(variable_x, mono_degree)
 monos = sorted(monos, key=lambda m: m.sort_key())
 
@@ -63,7 +63,7 @@ J_grad = jacobian(grad_vector, variable_x)
 # SUPTAG Define Frobenius norm-based loss function
 
 # TAG Create data points
-num_points = 1
+num_points = 10
 total_loss = 0
 
 x_min = -2; x_max = 2
@@ -79,7 +79,7 @@ for i in range(num_points):
     data_points.append(point)
 
 for i, subs_dict in enumerate(data_points):
-    print(f"Processing point {i+1}/{num_points}")
+    print(f"Processing point {i+1}/{num_points}", end='\r')
 
     # Substitute values into Jacobion
     J_subs = J_grad.subs(subs_dict)
@@ -106,9 +106,13 @@ bh = BasinHopping(
     initial_x=initial_point,
     temperature=10,
     step_size=1,
-    max_iter=1000
+    max_iter=200
 )
 
 best_theta, best_f = bh.optimize()
+
+with open('results.txt', 'w') as f:
+    f.write(f"best_theta: {best_theta}\n")
+    f.write(f"best_f: {best_f}\n")
 
 print(f"Best funciton value: f = {best_f:.3f}")

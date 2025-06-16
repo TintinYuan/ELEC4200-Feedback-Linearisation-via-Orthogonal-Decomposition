@@ -83,6 +83,11 @@ class BasinHopping:
             
             # Optional: adaptive temperature cooling
             # self.temperature *= 0.99
+
+            # Optimising pricess
+            interval = self.max_iter//100
+            if((i+1)%interval == 0):
+                print(f"Optimising process {(i+1)/self.max_iter * 100:.1f}%", end='\r')
         
         return self.best_x, self.best_f
 
