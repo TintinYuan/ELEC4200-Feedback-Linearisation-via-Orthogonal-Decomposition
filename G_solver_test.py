@@ -2,7 +2,7 @@ import sympy as sp
 import numpy as np
 from sympy.polys.monomials import itermonomials
 from utils import gram_schmidt, jacobian, lie_bracket, func_chooser
-from BH import BasinHopping
+from BH import BasinHopping_normed
 
 x1, x2, x3 = sp.symbols('x1 x2 x3')
 variable_x = sp.Matrix([x1, x2, x3])
@@ -38,11 +38,9 @@ product = sp.simplify(orthogonal_vector.dot(ad_f_g))
 print(product)
 
 # SUPTAG Define the scalar polynomial p(theta, x)
-
+# HACK For known known condition!!
 # Generate all monomials of total degree <= n
-mono_degree = 3
-monos = itermonomials(variable_x, mono_degree)
-monos = sorted(monos, key=lambda m: m.sort_key())
+monos = [x2**2, x3**2, x2*x3]
 n_coeffs = len(monos) # Number of terms in monos
 
 x = sp.IndexedBase('x') # Using indexed based variables instead of coeffs_n and coeffs_d
@@ -94,14 +92,16 @@ f_loss = sp.lambdify(x, total_loss)
 
 # SUPTAG Optimise!
 print("===Basin hopping on f_loss===")
-initial_point = np.ones((1, 2 * n_coeffs)).flatten()
+initial_point = np.random.randn(2*len(monos))
+initial_point /= np.linalg.norm(initial_point)  # ensure feasible initial guess
 
-bh = BasinHopping(
+
+bh = BasinHopping_normed(
     objective_func=f_loss,
     initial_x=initial_point,
     temperature=10,
-    step_size=1,
-    max_iter=200
+    step_size=1.5,
+    max_iter=100
 )
 
 best_theta, best_f = bh.optimize()

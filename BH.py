@@ -85,9 +85,103 @@ class BasinHopping:
             # self.temperature *= 0.99
 
             # Optimising pricess
-            interval = self.max_iter//100
-            if((i+1)%interval == 0):
-                print(f"Optimising process {(i+1)/self.max_iter * 100:.1f}%", end='\r')
+            print(f"Optimising process: {(i+1)/self.max_iter * 100:.1f}%, f_current: {f_current:.1f}", end='\r')
+        
+        return self.best_x, self.best_f
+    
+class BasinHopping_normed:
+    def __init__(self, 
+                 objective_func: Callable,
+                 initial_x: np.ndarray,
+                 temperature: float = 1.0,
+                 step_size: float = 0.5,
+                 max_iter: int = 100,
+                 local_method: str = 'SLSQP'):
+        """
+        Basin Hopping Algorithm Implementation
+        
+        Parameters:
+        - objective_func: Function to minimize
+        - initial_x: Starting point
+        - temperature: Controls acceptance probability
+        - step_size: Size of random perturbations
+        - max_iter: Maximum number of iterations
+        - local_method: Local optimization method
+        """
+        self.objective_func = objective_func
+        self.x = initial_x.copy()
+        self.temperature = temperature
+        self.step_size = step_size
+        self.max_iter = max_iter
+        self.local_method = local_method
+        
+        # Track optimization history
+        self.history = []
+        self.best_x = initial_x.copy()
+        self.best_f = float('inf')
+
+    def _constraint_n(self, theta):
+        return np.sum(theta[:len(theta)//2]**2) - 1
+    
+    def _constraint_d(self, theta):
+        return np.sum(theta[len(theta)//2:]**2) - 1
+        
+    def _local_minimize(self, x0: np.ndarray) -> Tuple[np.ndarray, float]:
+        """Perform local minimization from given starting point"""
+        
+        # Constraint: ||x0||^2 = 1
+        cons_n = {'type': 'eq', 'fun': self._constraint_n}
+        cons_d = {'type': 'eq', 'fun': self._constraint_d}
+        result = minimize(self.objective_func, x0, constraints=[cons_n, cons_d], method=self.local_method)
+        return result.x, result.fun
+    
+    def _accept_reject(self, f_new: float, f_current: float) -> bool:
+        """Monte Carlo acceptance criterion"""
+        if f_new < f_current:
+            return True
+        else:
+            prob = np.exp(-(f_new - f_current) / self.temperature)
+            return np.random.random() < prob
+    
+    def _perturb(self, x: np.ndarray) -> np.ndarray:
+        """Apply random perturbation to current position"""
+        return x + self.step_size * np.random.randn(len(x))
+    
+    def optimize(self) -> Tuple[np.ndarray, float]:
+        """Run the basin hopping algorithm"""
+        # Initial local minimization
+        self.x, f_current = self._local_minimize(self.x)
+        self.best_x = self.x.copy()
+        self.best_f = f_current
+        
+        self.history.append((self.x.copy(), f_current, True))
+        
+        for i in range(self.max_iter):
+            # Perturb current position
+            x_trial = self._perturb(self.x)
+            
+            # Local minimization from perturbed position
+            x_min, f_min = self._local_minimize(x_trial)
+            
+            # Accept or reject the new minimum
+            accepted = self._accept_reject(f_min, f_current)
+            
+            if accepted:
+                self.x = x_min
+                f_current = f_min
+                
+                # Update global best if improved
+                if f_min < self.best_f:
+                    self.best_x = x_min.copy()
+                    self.best_f = f_min
+            
+            self.history.append((x_min.copy(), f_min, accepted))
+            
+            # Optional: adaptive temperature cooling
+            # self.temperature *= 0.99
+
+            # Optimising pricess
+            print(f"Optimising process: {(i+1)/self.max_iter * 100:.1f}%, f_current: {f_current:.1f}", end='\r')
         
         return self.best_x, self.best_f
 
