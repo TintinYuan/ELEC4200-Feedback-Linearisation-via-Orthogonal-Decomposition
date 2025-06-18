@@ -91,6 +91,7 @@ for i, subs_dict in enumerate(data_points):
 f_loss = sp.lambdify(x, total_loss)
 
 # SUPTAG Optimise!
+print()
 print("===Basin hopping on f_loss===")
 initial_point = np.random.randn(2*len(monos))
 initial_point /= np.linalg.norm(initial_point)  # ensure feasible initial guess
@@ -99,8 +100,9 @@ initial_point /= np.linalg.norm(initial_point)  # ensure feasible initial guess
 bh = BasinHopping_normed(
     objective_func=f_loss,
     initial_x=initial_point,
-    temperature=10,
-    step_size=1.5,
+    temperature=5,
+    norm=10.0,
+    step_size=5.0,
     max_iter=100
 )
 
@@ -110,4 +112,5 @@ with open('results.txt', 'w') as f:
     f.write(f"best_theta: {best_theta}\n")
     f.write(f"best_f: {best_f}\n")
 
+print()
 print(f"Best funciton value: f = {best_f:.3f}")

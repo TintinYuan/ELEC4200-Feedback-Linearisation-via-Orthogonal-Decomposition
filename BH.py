@@ -85,7 +85,7 @@ class BasinHopping:
             # self.temperature *= 0.99
 
             # Optimising pricess
-            print(f"Optimising process: {(i+1)/self.max_iter * 100:.1f}%, f_current: {f_current:.1f}", end='\r')
+            print(f"Optimising process: {(i+1)/self.max_iter * 100:.1f}%, f_best: {self.best_f:.1f}, f_current: {f_current:.1f}", end='\r')
         
         return self.best_x, self.best_f
     
@@ -94,6 +94,7 @@ class BasinHopping_normed:
                  objective_func: Callable,
                  initial_x: np.ndarray,
                  temperature: float = 1.0,
+                 norm: float = 1,
                  step_size: float = 0.5,
                  max_iter: int = 100,
                  local_method: str = 'SLSQP'):
@@ -111,6 +112,7 @@ class BasinHopping_normed:
         self.objective_func = objective_func
         self.x = initial_x.copy()
         self.temperature = temperature
+        self.norm = norm
         self.step_size = step_size
         self.max_iter = max_iter
         self.local_method = local_method
@@ -121,10 +123,10 @@ class BasinHopping_normed:
         self.best_f = float('inf')
 
     def _constraint_n(self, theta):
-        return np.sum(theta[:len(theta)//2]**2) - 1
+        return np.sum(theta[:len(theta)//2]**2) - self.norm**2
     
     def _constraint_d(self, theta):
-        return np.sum(theta[len(theta)//2:]**2) - 1
+        return np.sum(theta[len(theta)//2:]**2) - self.norm**2
         
     def _local_minimize(self, x0: np.ndarray) -> Tuple[np.ndarray, float]:
         """Perform local minimization from given starting point"""
@@ -181,7 +183,7 @@ class BasinHopping_normed:
             # self.temperature *= 0.99
 
             # Optimising pricess
-            print(f"Optimising process: {(i+1)/self.max_iter * 100:.1f}%, f_current: {f_current:.1f}", end='\r')
+            print(f"Optimising process: {(i+1)/self.max_iter * 100:.1f}%, f_best: {self.best_f:.1f}, f_current: {f_current:.1f}", end='\r')
         
         return self.best_x, self.best_f
 

@@ -2,7 +2,7 @@ import sympy as sp
 import numpy as np
 from sympy.polys.monomials import itermonomials
 from utils import gram_schmidt, jacobian, lie_bracket, func_chooser
-from BH import BasinHopping
+from BH import BasinHopping_normed
 
 x1, x2, x3 = sp.symbols('x1 x2 x3')
 variable_x = sp.Matrix([x1, x2, x3])
@@ -40,7 +40,7 @@ print(product)
 # SUPTAG Define the scalar polynomial p(theta, x)
 
 # Generate all monomials of total degree <= n
-mono_degree = 3
+mono_degree = 2
 monos = itermonomials(variable_x, mono_degree)
 monos = sorted(monos, key=lambda m: m.sort_key())
 n_coeffs = len(monos) # Number of terms in monos
@@ -93,14 +93,17 @@ for i, subs_dict in enumerate(data_points):
 f_loss = sp.lambdify(x, total_loss)
 
 # SUPTAG Optimise!
+print()
 print("===Basin hopping on f_loss===")
-initial_point = np.ones((1, 2 * n_coeffs)).flatten()
+initial_point = np.random.randn(2*n_coeffs)
+initial_point /= np.linalg.norm(initial_point)  # ensure feasible initial guess
 
-bh = BasinHopping(
+bh = BasinHopping_normed(
     objective_func=f_loss,
     initial_x=initial_point,
     temperature=10,
-    step_size=1,
+    norm=2.0,
+    step_size=5.0,
     max_iter=200
 )
 
@@ -110,4 +113,5 @@ with open('results.txt', 'w') as f:
     f.write(f"best_theta: {best_theta}\n")
     f.write(f"best_f: {best_f}\n")
 
+print()
 print(f"Best funciton value: f = {best_f:.3f}")
