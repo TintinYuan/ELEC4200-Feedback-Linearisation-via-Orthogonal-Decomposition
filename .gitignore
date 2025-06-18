@@ -2,4 +2,6 @@
 /.vscode
 /data
 *.pyc
-
+*.logdata
+*.dat
+*.json2
