@@ -93,15 +93,16 @@ f_loss = sp.lambdify(x, total_loss)
 # SUPTAG Optimise!
 print()
 print("===Basin hopping on f_loss===")
+norm = 10
 initial_point = np.random.randn(2*len(monos))
 initial_point /= np.linalg.norm(initial_point)  # ensure feasible initial guess
-
+initial_point *= norm
 
 bh = BasinHopping_normed(
     objective_func=f_loss,
     initial_x=initial_point,
     temperature=5,
-    norm=10.0,
+    norm=norm,
     step_size=5.0,
     max_iter=100
 )
