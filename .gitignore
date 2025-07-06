@@ -1,3 +1,5 @@
 /figures
 /.vscode
-
+/data
+/__pycache__
+/outcmaes
