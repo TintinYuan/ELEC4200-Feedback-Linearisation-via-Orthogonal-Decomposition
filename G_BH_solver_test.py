@@ -43,12 +43,12 @@ print(product)
 monos = [x2**2, x3**2, x2*x3]
 n_coeffs = len(monos) # Number of terms in monos
 
-x = sp.IndexedBase('x') # Using indexed based variables instead of coeffs_n and coeffs_d
+theta = sp.IndexedBase('theta') # Using indexed based variables instead of coeffs_n and coeffs_d
 
 # Numerator uses x[0] ... x[n_coeffs-1]
-poly_n = sum(x[i] * monos[i] for i in range(n_coeffs))
+poly_n = sum(theta[i] * monos[i] for i in range(n_coeffs))
 # Denominator uses x[n_coeffs] ... x[2*n_coeffs - 1]
-poly_d = sum(x[i + n_coeffs] * monos[i] for i in range(n_coeffs))
+poly_d = sum(theta[i + n_coeffs] * monos[i] for i in range(n_coeffs))
 
 poly_p = poly_n/poly_d
 
@@ -57,9 +57,9 @@ grad_vector = poly_p * orthogonal_vector
 # grad_vector = sp.simplify(grad_vector)
 
 J_grad = jacobian(grad_vector, variable_x)
-
+J_grad = sp.simplify(J_grad)
 # SUPTAG Define Frobenius norm-based loss function
-
+J_grad_expand = sp.expand(J_grad)
 # TAG Create data points
 num_points = 10
 total_loss = 0
@@ -88,7 +88,7 @@ for i, subs_dict in enumerate(data_points):
     total_loss += loss_term
 
 # TAG lambdified function
-f_loss = sp.lambdify(x, total_loss)
+f_loss = sp.lambdify(theta, total_loss)
 
 # SUPTAG Optimise!
 print()
