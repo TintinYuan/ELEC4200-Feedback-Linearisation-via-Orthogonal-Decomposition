@@ -1,10 +1,6 @@
 import sympy as sp
 from utils import gram_schmidt, lie_bracket, func_chooser
 
-# Define symbolic variables
-x1, x2, x3 = sp.symbols('x1 x2 x3')
-variable_x = sp.Matrix([x1, x2, x3])
-
 class UncanceledRational:
     """
     Class for handling rational functions without automatic cancellation of common factors.
@@ -62,6 +58,9 @@ class UncanceledRational:
         )
         
 if __name__ == "__main__":
+    # Define symbolic variables
+    x1, x2, x3 = sp.symbols('x1 x2 x3')
+    variable_x = sp.Matrix([x1, x2, x3])
     # Create example reducible rational functions
     den = x1**2 + x2**2
     num = (x2 + x2*x3) * den
