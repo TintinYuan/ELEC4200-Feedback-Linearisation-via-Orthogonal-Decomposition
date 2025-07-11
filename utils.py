@@ -1,4 +1,7 @@
 import sympy as sp
+import UncanceledRational as ur
+# from UncanceledRational import UncanceledRational as ur
+# from UncanceledRational import RationalMatrix as urMatrix
 
 def gram_schmidt(G):
     """
@@ -25,10 +28,36 @@ def gram_schmidt(G):
         V.append(v)
     return V[-1]
 
+# Ur version of gram_schmidt
+def gram_schmidt2(G):
+
+    n_cols = G.shape[1] if hasattr(G, 'shape') else len(G)
+    V = [] # constructed orthogonal matrix
+
+    for i in range(n_cols):
+        v = G[i] # current column of G = [g, adfg, adf2g, ...]
+        for j in range(i):
+            vj = V[j]
+            gi = G[i] # RationalMatrix vector
+
+            dot_vj_gi = (vj.transpose() * gi)[0, 0]
+            
+            dot_vj_vj = (vj.transpose() * vj)[0, 0]
+
+            proj = vj * (dot_vj_gi/dot_vj_vj)
+
+            v = v - proj
+
+        V.append(v)
+
+
+
+    return V[-1]
 
 def jacobian(vector_field, variables):
     """Compute the Jacobian matrix of a vector field."""
     return vector_field.jacobian(variables)
+
 
 def lie_bracket(f, g, variables):
     """Compute the Lie bracket [f, g] = (∂g/∂x)f - (∂f/∂x)g"""
@@ -36,8 +65,12 @@ def lie_bracket(f, g, variables):
     Jg = jacobian(g, variables)
     return Jg * f - Jf * g
 
+# Ur version of lie_bracket
+def lie_bracket2(f, g, variables):
 
-
+    Jf = f.jacobian(variables)
+    Jg = g.jacobian(variables)
+    return Jg * f - Jf * g
 # TAG Function chooser
 
 def func_chooser(num):
@@ -75,4 +108,49 @@ def func_chooser(num):
                             0,
                             0])
             
+            return fx, gx
+        
+# Ur version of func_chooser
+def func_chooser2(num):
+    x1, x2, x3 = sp.symbols("x1 x2 x3")
+
+    match num:
+        case 1:
+            fx = ur.RationalMatrix([
+                [ur.UncanceledRational(-x1 + x1*x2)],
+                [ur.UncanceledRational(-2*x2 - 2*x1*x3)],
+                [ur.UncanceledRational(3*x1*x2)]
+            ])
+
+            gx = ur.RationalMatrix([
+                [ur.UncanceledRational(0)],
+                [ur.UncanceledRational(x1)],
+                [ur.UncanceledRational(1)]
+            ])
+            return fx, gx
+        case 2:
+            fx = ur.RationalMatrix([
+                [ur.UncanceledRational(-x1)],
+                [ur.UncanceledRational(-2*x2 - x1*x3)],
+                [ur.UncanceledRational(3*x1*x2)]
+            ])
+
+            gx = ur.RationalMatrix([
+                [ur.UncanceledRational(1)],
+                [ur.UncanceledRational(0)],
+                [ur.UncanceledRational(0)]
+            ])
+            return fx, gx
+        case _: # Same as case 2
+            fx = ur.RationalMatrix([
+                [ur.UncanceledRational(-x1)],
+                [ur.UncanceledRational(-2*x2 - x1*x3)],
+                [ur.UncanceledRational(3*x1*x2)]
+            ])
+
+            gx = ur.RationalMatrix([
+                [ur.UncanceledRational(1)],
+                [ur.UncanceledRational(0)],
+                [ur.UncanceledRational(0)]
+            ])
             return fx, gx
