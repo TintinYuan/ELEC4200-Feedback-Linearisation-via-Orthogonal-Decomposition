@@ -40,7 +40,7 @@ print(product)
 # SUPTAG Define the scalar polynomial p(theta, x)
 # HACK For known known condition!!
 # Generate all monomials of total degree <= n
-monos = [x1, x2, x3, x2**2, x3**2, x2*x3]
+monos = [x2**2, x3**2, x2*x3]
 n_coeffs = len(monos) # Number of terms in monos
 
 theta = sp.IndexedBase('theta') # Using indexed based variables instead of coeffs_n and coeffs_d

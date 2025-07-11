@@ -1,23 +1,14 @@
 import sympy as sp
-from sympy.polys.monomials import itermonomials
-from utils import gram_schmidt, lie_bracket, func_chooser
 
-x1, x2, x3 = sp.symbols('x1 x2 x3')
-variable_x = sp.Matrix([x1, x2, x3])
+x1, x2, x3 = sp.symbols("x1 x2 x3")
+x_variables = sp.Matrix([x1, x2, x3])
 
-# Generate all monomials of total degree <= n
-mono_degree = 3
-monos = itermonomials(variable_x, mono_degree)
-monos = sorted(monos, key=lambda m: m.sort_key())
+num = sp.UnevaluatedExpr((x1 + x2)) * sp.UnevaluatedExpr(x1)
+den = sp.UnevaluatedExpr((x1 + x2))
 
-# Generate coefficient of the same length (a0 as theta)
-coeffs_n = sp.symbols(f'n0:{len(monos)}') # For numerator
-coeffs_d = sp.symbols(f'd0:{len(monos)}') # For denominator
+f = num/den
+f = sp.Matrix([f])
+print(f)
 
-# Generate Polynomial from monomials
-poly_n = sum(c * m for c, m in zip(coeffs_n, monos))
-poly_d = sum(c * m for c, m in zip(coeffs_d, monos))
-
-poly_p = poly_n/poly_d
-
-
+Jf = f.jacobian(x_variables)
+print(Jf)

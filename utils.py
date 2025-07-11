@@ -1,6 +1,6 @@
 import sympy as sp
 
-def gram_schmidt(V):
+def gram_schmidt(G):
     """
     Compute the vector that is orthogonal to the first n-1 columns of V
 
@@ -10,20 +10,20 @@ def gram_schmidt(V):
     output: 
         dh: n by 1 vector that is orthogonal to V[:-1]
     """
-    n_cols = V.shape[1] if hasattr(V, 'shape') else len(V)
-    U = []
+    n_cols = G.shape[1] if hasattr(G, 'shape') else len(G)
+    V = []
 
     for i in range(n_cols):
-        u = V[i]
+        v = G[i]
         for j in range(i):
-            uj = U[j]
-            vi = V[i]
-            dot_uj_vi = sum(uj[j] * vi[j] for j in range(len(vi)))
-            dot_uj_uj = sum(uj[j] * uj[j] for j in range(len(uj)))
-            proj = (dot_uj_vi/dot_uj_uj)*uj
-            u = u - proj
-        U.append(u)
-    return U[-1]
+            vj = V[j]
+            gi = G[i]
+            dot_vj_gi = sum(vj[j] * gi[j] for j in range(len(gi)))
+            dot_vj_vj = sum(vj[j] * vj[j] for j in range(len(vj)))
+            proj = (dot_vj_gi/dot_vj_vj)*vj
+            v = v - proj
+        V.append(v)
+    return V[-1]
 
 
 def jacobian(vector_field, variables):
@@ -60,9 +60,9 @@ def func_chooser(num):
                             -2*x2 - x1*x3,
                             3*x1*x2])
             
-            gx = sp.Matrix([1,
-                            0,
-                            0])
+            gx = sp.Matrix([1,# x1*x2
+                            0, # x2
+                            0])# 0
             
             return fx, gx
 
