@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import os
 import datetime
 # Import the potential functions from the new module
-from PINN_functions import *
+from PINNs.PINN_functions import *
 
 # Set random seed for reproducibility
 torch.manual_seed(16)

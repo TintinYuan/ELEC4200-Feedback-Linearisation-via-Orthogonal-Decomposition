@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt
-from PINN_functions import *
+from PINNs.PINN_functions import *
 
 # Set random seed for reproducibility
 torch.manual_seed(42)
