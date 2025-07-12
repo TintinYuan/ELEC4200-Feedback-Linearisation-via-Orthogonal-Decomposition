@@ -107,7 +107,6 @@ for i in range(n_starts):
     den_coeff = random_unit_vector(n_coeffs)
     initial_guess = np.concatenate([num_coeff, den_coeff])
 
-    # TODO add result solver
     result = minimize(
         total_violation,
         initial_guess,
