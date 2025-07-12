@@ -143,6 +143,8 @@ class UncanceledRational:
             new_num = self.num * other.num
             new_den = self.den * other.den
             return UncanceledRational(new_num, new_den)
+        elif isinstance(other, RationalMatrix):
+            return other * self
         else:
             # When multiplying by a scalar
             new_num = self.num * other

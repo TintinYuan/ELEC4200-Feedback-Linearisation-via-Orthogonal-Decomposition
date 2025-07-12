@@ -2,8 +2,10 @@
 
 import sympy as sp
 import numpy as np
-from utils import gram_schmidt2, lie_bracket2, func_chooser2
+from scipy.optimize import minimize 
+from utils import gram_schmidt2, lie_bracket2, func_chooser2, constraint_violations2, verify_solution2
 import UncanceledRational as ur
+from theta_optimisation_solver import random_unit_vector
 
 x1, x2, x3 = sp.symbols('x1 x2 x3')
 variable_x = sp.Matrix([x1, x2, x3])
@@ -47,28 +49,84 @@ poly_d = sum(theta[i + n_coeffs] * monos[i] for i in range(n_coeffs))
 poly_p = ur.UncanceledRational(poly_n, poly_d)
 
 # Compute p*v
-grad_vector = orthogonal_vector * poly_p
+grad_vector = poly_p * orthogonal_vector # Bug fixed by adding RationalMatrix instance to class UncalceledRational 
 
 J_grad = grad_vector.jacobian(variable_x)
 
 diff = sp.expand(J_grad[2, 1].num) - sp.expand(J_grad[1, 2].num)
 
-# Collect terms with respect to powers of x2 and x3
-collected = sp.collect(diff, [x1, x2, x3], evaluate=False)
+# Convert to a polynomial in x1, x2 and x3
+poly = sp.Poly(diff, list(variable_x))
 
-# Extract constraints (coefficients must be zero for equality)
+# Get the coefficient dictionary
+coeff_dict = poly.as_dict()
+
+# # Collect terms with respect to powers of x2 and x3
+# collected = sp.collect(diff, [x1, x2, x3], evaluate=False)
+
+# # Extract constraints (coefficients must be zero for equality)
 constraints = []
-for term, coef in collected.items():
+for _, coef in coeff_dict.items():
     if coef != 0:
-        constraint = sp.Eq(coef, 0)
-        constraints.append((term, constraint))
+        constraints.append(coef)
 
-# Print constraints
-for term, constraint in constraints:
-    print(f"For term {term}:")
-    print(f"  {constraint}")
+c_norm1 = 0; c_norm2 = 0
+for i in range(n_coeffs):
+    c_norm1 += theta[i] ** 2
+    c_norm2 += theta[i + n_coeffs] **2
+c_norm1 -= 1; c_norm2 -= 1
 
-# Try to solve the system
-solution = sp.solve(constraints, theta)
-print("\nSolution for theta values:")
-print(solution)
+constraints.append(c_norm1)
+constraints.append(c_norm2)
+
+def total_violation(theta_vals):
+    """
+    Returns the sum of squared constraint violations
+    """
+    violations = constraint_violations2(
+        constraints=constraints,
+        theta=theta,
+        theta_vals=theta_vals
+    )
+    return np.sum(violations**2)
+
+# SUPTAG solver
+# Number of random starting points
+n_starts = 100
+tolerance = 1e-6
+solutions = []
+
+known_solutions = [
+        # Solution family 1: [0, 0, 0, 0, cos(α), sin(α)]
+        np.array([0.9939, 0.1104, 0, 0, 0, -1]),  # α = 0
+        np.array([-0.9939, -0.1104, 0, 0, 0, 1]),  # α = π/2
+    ]
+
+for i in range(n_starts):
+    num_coeff = random_unit_vector(n_coeffs)
+    den_coeff = random_unit_vector(n_coeffs)
+    initial_guess = np.concatenate([num_coeff, den_coeff])
+
+    # TODO add result solver
+    result = minimize(
+        total_violation,
+        initial_guess,
+        method='SLSQP',
+        options={'ftol': 1e-10, 'disp': False, 'maxiter': 1000}
+    )
+
+    if result.success and total_violation(result.x) < tolerance:
+        # Check if this solution is already found
+        is_new = True
+        for sol in solutions:
+            if np.linalg.norm(result.x - sol) < 0.01:
+                is_new = False
+                break
+        
+        if is_new:
+            print(f"\nFound new solution (iteration {i+1}):")
+            print(result.x)
+            verify_solution2(constraints, theta, result.x)
+            solutions.append(result.x)
+
+print(f"\nTotal unique solutions found: {len(solutions)}")

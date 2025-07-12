@@ -135,7 +135,7 @@ def main():
     tolerance = 1e-6
     solutions = []
     
-    # Known solutions from analytical analysis
+    # NOTE: Known solutions from analytical analysis
     # Case 1: θ3 = 0
     known_solutions = [
         # Solution family 1: [0, 0, 0, 0, cos(α), sin(α)]
@@ -143,7 +143,6 @@ def main():
         np.array([-0.9939, -0.1104, 0, 0, 0, 1]),  # α = π/2
     ]
     
-    # BUG delete known solution
     # Check known solutions first
     print("Verifying analytically derived solutions:")
     for i, sol in enumerate(known_solutions):
@@ -156,13 +155,14 @@ def main():
     # Random search with multiple starting points
     print("\nSearching for solutions using numerical optimisation:")
     
+    # TAG call the solver
     for i in range(n_starts):
         # Random initial guess with unit norm constraints
         first_half = random_unit_vector()
         second_half = random_unit_vector()
         initial_guess = np.concatenate([first_half, second_half])
         
-        # Run optimization
+        # SUB Run optimization
         result = solve_with_initial_point(initial_guess)
         
         # Check if the solution is valid
