@@ -96,6 +96,8 @@ def total_violation(theta_vals):
 n_starts = 200
 tolerance = 1e-6
 solutions = []
+best_f = float('inf')
+best_theta = None
 
 known_solutions = [
         # Solution family 1: [0, 0, 0, 0, cos(α), sin(α)]
@@ -118,6 +120,13 @@ for i in range(n_starts):
     )
 
     if result.success and total_violation(result.x) < tolerance:
+        violation_value = total_violation(result.x)
+        
+        # Track the best solution
+        if violation_value < best_f:
+            best_f = violation_value
+            best_theta = result.x.copy()
+        
         # Check if this solution is already found
         is_new = True
         for sol in solutions:
@@ -132,3 +141,18 @@ for i in range(n_starts):
             solutions.append(result.x)
 
 print(f"\nTotal unique solutions found: {len(solutions)}")
+
+# Write results to file
+with open('results.txt', 'w') as f:
+    f.write(f"Total unique solutions found: {len(solutions)}\n\n")
+    
+    if best_theta is not None:
+        f.write(f"Best solution (lowest violation):\n")
+        f.write(f"best_theta: {best_theta}\n")
+        f.write(f"best_f (violation): {best_f}\n\n")
+    
+    f.write("All solutions:\n")
+    for i, sol in enumerate(solutions):
+        f.write(f"Solution {i+1}:\n")
+        f.write(f"{sol}\n")
+        f.write(f"Violation: {total_violation(sol)}\n\n")
