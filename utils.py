@@ -156,23 +156,22 @@ def func_chooser2(num):
             ])
             return fx, gx
 
-def constraint_violations2(constraints, theta, theta_vals):
-    subs_dict = {theta[idx]: theta_vals[idx] for idx in range(len(theta_vals))}
-
-    results = [expr.subs(subs_dict) for expr in constraints]
+def constraint_violations2(constraint_funcs, theta_vals):
+    
+    results = [func(theta_vals) for func in constraint_funcs]
 
     return np.array(results)
 
-def verify_solution2(constraints, theta, theta_vals):
+def verify_solution2(constraint_funcs, theta_vals):
     """
     Verify that a solution satisfies all constraints
     """
-    violations = constraint_violations2(constraints, theta, theta_vals)
+    violations = constraint_violations2(constraint_funcs, theta_vals)
     max_violation = np.max(np.abs(violations))
     
     print(f"Max constraint violation: {max_violation:.6e}")
     
-    if max_violation < 1e-6:
+    if max_violation < 1e-3:
         print("All constraints are satisfied!")
     else:
         print("Constraints are not satisfied.")

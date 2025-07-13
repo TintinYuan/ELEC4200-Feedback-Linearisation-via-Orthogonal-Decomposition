@@ -79,13 +79,14 @@ c_norm1 -= 1; c_norm2 -= 1
 constraints.append(c_norm1)
 constraints.append(c_norm2)
 
+constraint_funcs = [sp.lambdify(theta, expr, "numpy") for expr in constraints]
+
 def total_violation(theta_vals):
     """
     Returns the sum of squared constraint violations
     """
     violations = constraint_violations2(
-        constraints=constraints,
-        theta=theta,
+        constraint_funcs=constraint_funcs,
         theta_vals=theta_vals
     )
     return np.sum(violations**2)
@@ -125,7 +126,7 @@ for i in range(n_starts):
         if is_new:
             print(f"\nFound new solution (iteration {i+1}):")
             print(result.x)
-            verify_solution2(constraints, theta, result.x)
+            verify_solution2(constraint_funcs, result.x)
             solutions.append(result.x)
 
 print(f"\nTotal unique solutions found: {len(solutions)}")
