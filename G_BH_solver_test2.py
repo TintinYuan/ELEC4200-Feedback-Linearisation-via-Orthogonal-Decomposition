@@ -36,7 +36,7 @@ print(product)
 
 
 # TAG introduce rational polynomial p
-monos = [x2**2, x3**2, x2*x3]
+monos = [x1, x2, x3, x1**2, x2**2, x3**2, x2*x3]
 n_coeffs = len(monos)
 
 theta = sp.IndexedBase('theta')
@@ -93,14 +93,16 @@ def total_violation(theta_vals):
 
 # SUPTAG solver
 # Number of random starting points
-n_starts = 100
+n_starts = 200
 tolerance = 1e-6
 solutions = []
 
 known_solutions = [
         # Solution family 1: [0, 0, 0, 0, cos(α), sin(α)]
-        np.array([0.9939, 0.1104, 0, 0, 0, -1]),  # α = 0
-        np.array([-0.9939, -0.1104, 0, 0, 0, 1]),  # α = π/2
+        np.array([0, 0, 0, 0, 0.9939, 0.1104, 0,
+                  0, 0, 0, 0, 0, 0, -1]),  # α = 0
+        np.array([0, 0, 0, 0, -0.9939, -0.1104, 0,
+                  0, 0, 0, 0, 0, 0, 1]),  # α = π/2
     ]
 
 for i in range(n_starts):
