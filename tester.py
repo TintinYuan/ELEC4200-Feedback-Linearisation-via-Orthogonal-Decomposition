@@ -1,14 +1,17 @@
 import sympy as sp
+from utils import symbolic_integration
 
-x1, x2, x3 = sp.symbols("x1 x2 x3")
-x_variables = sp.Matrix([x1, x2, x3])
+# For a 4D example
+x1, x2, x3, x4 = sp.symbols('x1 x2 x3 x4')
+vars = [x1, x2, x3, x4]
 
-num = sp.UnevaluatedExpr((x1 + x2)) * sp.UnevaluatedExpr(x1)
-den = sp.UnevaluatedExpr((x1 + x2))
+# Example gradient field (should be a conservative field)
+grad_vec = [
+    2*x1 + x2,          # ∂h/∂x1
+    x1 + 2*x2 + x3,     # ∂h/∂x2
+    x2 + 2*x3 + x4,     # ∂h/∂x3
+    x3 + 2*x4           # ∂h/∂x4
+]
 
-f = num/den
-f = sp.Matrix([f])
-print(f)
-
-Jf = f.jacobian(x_variables)
-print(Jf)
+h = symbolic_integration(grad_vec, vars)
+print()

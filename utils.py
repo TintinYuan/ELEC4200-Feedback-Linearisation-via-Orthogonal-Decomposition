@@ -177,3 +177,32 @@ def verify_solution2(constraint_funcs, theta_vals):
         print("Constraints are not satisfied.")
         for i, v in enumerate(violations):
             print(f"Constraint {i}: {v:.6e}")
+
+# Symbolic integration
+def symbolic_integration(grad_vec, vars):
+    """
+    Integration of the symbolic vector field
+
+    Args:
+        grad_vec (list): A list of Jacobian gradient vector
+        vars (sp.IndexedBase): State variables
+    Returns:
+        (sp.expr): Output funciton h
+    """
+
+    dim = len(grad_vec)
+
+    h = 0
+    for i in range(dim):
+        grad = grad_vec[i]
+        remaining = grad - sp.diff(h, vars[i])
+        h += sp.integrate(remaining, vars[i])
+
+    # Result testing 
+    for i in range(dim):
+        assert sp.expand(sp.diff(h, vars[i]) - grad_vec[i]) == 0, \
+            f"Verification failed for component {i}"
+
+
+    print("Original scalar function h(x) =", h)
+    return h

@@ -96,8 +96,8 @@ def total_violation(theta_vals):
 n_starts = 200
 tolerance = 1e-6
 solutions = []
-best_f = float('inf')
-best_theta = None
+best_f = float('inf') # np.float64
+best_theta = None # np.ndarray, shape = (2*n_coeffs, )
 
 known_solutions = [
         # Solution family 1: [0, 0, 0, 0, cos(α), sin(α)]
