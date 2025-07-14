@@ -3,7 +3,7 @@
 import sympy as sp
 import numpy as np
 from scipy.optimize import minimize 
-from utils import gram_schmidt2, lie_bracket2, func_chooser2, constraint_violations2, verify_solution2
+from utils import gram_schmidt2, lie_bracket2, func_chooser2, constraint_violations2, verify_solution2, symbolic_integration
 import UncanceledRational as ur
 from theta_optimisation_solver import random_unit_vector
 
@@ -141,6 +141,18 @@ for i in range(n_starts):
             solutions.append(result.x)
 
 print(f"\nTotal unique solutions found: {len(solutions)}")
+
+cleaned_theta = np.where(np.abs(best_theta) < 1e-4, 0, best_theta)
+# TODO add integration
+# Output function
+num_expr = sum(coef * mono for coef, mono in zip(cleaned_theta[:len(cleaned_theta)//2], monos))
+den_expr = sum(coef * mono for coef, mono in zip(cleaned_theta[len(cleaned_theta)//2:], monos))
+poly_p_expr = num_expr/den_expr
+
+orth_vec_sp = orthogonal_vector.to_sympy_matrix()
+orth_vec = [orth_vec_sp[i] for i in range(orth_vec_sp.shape[0])]
+grad_vec =[poly_p_expr * expr for expr in orth_vec]
+h = symbolic_integration(grad_vec, [x1, x2, x3])
 
 # Write results to file
 with open('results.txt', 'w') as f:

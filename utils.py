@@ -59,7 +59,6 @@ def jacobian(vector_field, variables):
     """Compute the Jacobian matrix of a vector field."""
     return vector_field.jacobian(variables)
 
-
 def lie_bracket(f, g, variables):
     """Compute the Lie bracket [f, g] = (∂g/∂x)f - (∂f/∂x)g"""
     Jf = jacobian(f, variables)
@@ -178,6 +177,32 @@ def verify_solution2(constraint_funcs, theta_vals):
         for i, v in enumerate(violations):
             print(f"Constraint {i}: {v:.6e}")
 
+def clean_small_coeffs(expr, tolerance=1e-4):
+    """
+    Replace coefficients smaller than tolerance with zero in a SymPy expression
+    
+    Args:
+        expr: A SymPy expression
+        tolerance: Threshold below which coefficients are set to zero
+        
+    Returns:
+        A SymPy expression with small coefficients removed
+    """
+    if expr.is_Add:
+        return sp.Add(*[clean_small_coeffs(term, tolerance) for term in expr.args])
+    elif expr.is_Mul:
+        coeff, rest = expr.as_coeff_mul()
+        if abs(float(coeff)) < tolerance:
+            return sp.S.Zero
+        else:
+            return coeff * sp.Mul(*rest)
+    elif hasattr(expr, "is_number") and expr.is_number:
+        if abs(float(expr)) < tolerance:
+            return sp.S.Zero
+        return expr
+    else:
+        return expr
+
 # Symbolic integration
 def symbolic_integration(grad_vec, vars):
     """
@@ -196,13 +221,14 @@ def symbolic_integration(grad_vec, vars):
     for i in range(dim):
         grad = grad_vec[i]
         remaining = grad - sp.diff(h, vars[i])
+        remaining = sp.simplify(sp.expand(remaining))
+        # remaining = clean_small_coeffs(remaining, tolerance=1e-4)
         h += sp.integrate(remaining, vars[i])
 
     # Result testing 
     for i in range(dim):
         assert sp.expand(sp.diff(h, vars[i]) - grad_vec[i]) == 0, \
             f"Verification failed for component {i}"
-
 
     print("Original scalar function h(x) =", h)
     return h
