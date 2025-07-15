@@ -1,17 +1,45 @@
 import sympy as sp
-from utils import symbolic_integration
+from sympy import symbols
 
-# For a 4D example
-x1, x2, x3, x4 = sp.symbols('x1 x2 x3 x4')
-vars = [x1, x2, x3, x4]
+def zero_small_coefficients(expr, threshold=1e-5):
+    """
+    Replace coefficients with absolute value less than threshold with zero
+    in a SymPy expression object
+    """
+    # If the expression is just a number
+    if expr.is_Number:
+        return sp.Integer(0) if abs(float(expr)) < threshold else expr
+    
+    # For Add expressions (sums of terms)
+    if expr.is_Add:
+        return sp.Add(*[zero_small_coefficients(term, threshold) for term in expr.args])
+    
+    # For Mul expressions (products of factors)
+    elif expr.is_Mul:
+        # Extract the coefficient and the rest of the expression
+        coeff, rest = expr.as_coeff_Mul()
+        if abs(float(coeff)) < threshold:
+            return sp.Integer(0)
+        return coeff * zero_small_coefficients(rest, threshold)
+    
+    # For expressions with powers, functions, etc.
+    elif expr.args:
+        new_args = [zero_small_coefficients(arg, threshold) for arg in expr.args]
+        return expr.func(*new_args)
+    
+    # For atomic expressions like symbols
+    return expr
 
-# Example gradient field (should be a conservative field)
-grad_vec = [
-    2*x1 + x2,          # ∂h/∂x1
-    x1 + 2*x2 + x3,     # ∂h/∂x2
-    x2 + 2*x3 + x4,     # ∂h/∂x3
-    x3 + 2*x4           # ∂h/∂x4
-]
+# Example usage
+x2, x3 = symbols('x2 x3')
 
-h = symbolic_integration(grad_vec, vars)
-print()
+# Let's assume this is your SymPy expression (not a string)
+expr = -5.0901473181669e-7 * x2**2 * sp.log(9*x2**2 + x3**2) - 1.98761456308722 * x2**2 - 0.662538131138547 * x3**2
+
+# Apply the function
+simplified_expr = zero_small_coefficients(expr)
+
+print("Original expression:")
+print(expr)
+print("\nSimplified expression (coefficients < 1e-5 set to zero):")
+print(simplified_expr)

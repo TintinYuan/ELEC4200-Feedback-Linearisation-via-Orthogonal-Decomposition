@@ -3,7 +3,7 @@
 import sympy as sp
 import numpy as np
 from scipy.optimize import minimize 
-from utils import gram_schmidt2, lie_bracket2, func_chooser2, constraint_violations2, verify_solution2, symbolic_integration
+from utils import gram_schmidt2, lie_bracket2, func_chooser2, constraint_violations2, verify_solution2, symbolic_integration, is_curl_free
 import UncanceledRational as ur
 from theta_optimisation_solver import random_unit_vector
 
@@ -93,7 +93,7 @@ def total_violation(theta_vals):
 
 # SUPTAG solver
 # Number of random starting points
-n_starts = 200
+n_starts = 300
 tolerance = 1e-6
 solutions = []
 best_f = float('inf') # np.float64
@@ -143,7 +143,7 @@ for i in range(n_starts):
 print(f"\nTotal unique solutions found: {len(solutions)}")
 
 cleaned_theta = np.where(np.abs(best_theta) < 1e-4, 0, best_theta)
-# TODO add integration
+
 # Output function
 num_expr = sum(coef * mono for coef, mono in zip(cleaned_theta[:len(cleaned_theta)//2], monos))
 den_expr = sum(coef * mono for coef, mono in zip(cleaned_theta[len(cleaned_theta)//2:], monos))
@@ -151,10 +151,12 @@ poly_p_expr = num_expr/den_expr
 
 orth_vec_sp = orthogonal_vector.to_sympy_matrix()
 orth_vec = [orth_vec_sp[i] for i in range(orth_vec_sp.shape[0])]
-grad_vec =[poly_p_expr * expr for expr in orth_vec]
-h = symbolic_integration(grad_vec, [x1, x2, x3])
+grad_vec = [poly_p_expr * expr for expr in orth_vec]
+grad_vec_sp = sp.Matrix([poly_p_expr * expr for expr in orth_vec])
+curl = is_curl_free(grad_vec_sp, (x1, x2, x3))
 
-# Write results to file
+# TAG integration result
+h = symbolic_integration(sp.nsimplify(grad_vec_sp), [x1, x2, x3]) # type = <class 'sympy.core.add.Add'>
 with open('results.txt', 'w') as f:
     f.write(f"Total unique solutions found: {len(solutions)}\n\n")
     
@@ -168,3 +170,6 @@ with open('results.txt', 'w') as f:
         f.write(f"Solution {i+1}:\n")
         f.write(f"{sol}\n")
         f.write(f"Violation: {total_violation(sol)}\n\n")
+
+    f.write("Learned h function:\n")
+    f.write(f"{h}\n")

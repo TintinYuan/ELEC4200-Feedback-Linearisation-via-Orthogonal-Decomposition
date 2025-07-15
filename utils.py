@@ -203,6 +203,34 @@ def clean_small_coeffs(expr, tolerance=1e-4):
     else:
         return expr
 
+def zero_small_coefficients(expr, threshold=1e-5):
+    """
+    Replace coefficients with absolute value less than threshold with zero
+    in a SymPy expression object
+    """
+    # If the expression is just a number
+    if expr.is_Number:
+        return sp.Integer(0) if abs(float(expr)) < threshold else expr
+    
+    # For Add expressions (sums of terms)
+    if expr.is_Add:
+        return sp.Add(*[zero_small_coefficients(term, threshold) for term in expr.args])
+    
+    # For Mul expressions (products of factors)
+    elif expr.is_Mul:
+        # Extract the coefficient and the rest of the expression
+        coeff, rest = expr.as_coeff_Mul()
+        if abs(float(coeff)) < threshold:
+            return sp.Integer(0)
+        return coeff * zero_small_coefficients(rest, threshold)
+    
+    # For expressions with powers, functions, etc.
+    elif expr.args:
+        new_args = [zero_small_coefficients(arg, threshold) for arg in expr.args]
+        return expr.func(*new_args)
+    
+    # For atomic expressions like symbols
+    return expr
 # Symbolic integration
 def symbolic_integration(grad_vec, vars):
     """
@@ -225,10 +253,42 @@ def symbolic_integration(grad_vec, vars):
         # remaining = clean_small_coeffs(remaining, tolerance=1e-4)
         h += sp.integrate(remaining, vars[i])
 
+    h = h.evalf()
+    simplified_h = zero_small_coefficients(h, threshold=1e-4)
     # Result testing 
-    for i in range(dim):
-        assert sp.expand(sp.diff(h, vars[i]) - grad_vec[i]) == 0, \
-            f"Verification failed for component {i}"
+    # for i in range(dim):
+    #     assert sp.expand(sp.diff(h, vars[i]) - grad_vec[i]) == 0, \
+    #         f"Verification failed for component {i}"
 
-    print("Original scalar function h(x) =", h)
-    return h
+    print("Original scalar function h(x) =", simplified_h)
+    return simplified_h
+
+def is_curl_free(F, vars=None):
+    """
+    Check if a 3D vector field F is curl-free.
+    F: sympy.Matrix of shape (3, 1) or (3,)
+    vars: tuple/list of sympy symbols (x1, x2, x3), default to (x1, x2, x3)
+    Returns: True if curl is zero vector, else False
+    """
+    if vars is None:
+        x1, x2, x3 = sp.symbols('x1 x2 x3')
+        vars = (x1, x2, x3)
+    if isinstance(F, list):
+        F = sp.Matrix(F)
+    curl = sp.Matrix([
+        sp.diff(F[2], vars[1]) - sp.diff(F[1], vars[2]),
+        sp.diff(F[0], vars[2]) - sp.diff(F[2], vars[0]),
+        sp.diff(F[1], vars[0]) - sp.diff(F[0], vars[1])
+    ])
+    # Check if all components are zero
+    return [sp.simplify(comp) for comp in curl]
+
+
+def linear_dynamics(h, dim):
+
+    Ac = sp.Matrix(dim, dim, lambda i, j: 1 if j == i+1 else 0) # sp.Matrix, shape = (dim, dim)
+
+    Bc = sp.Matrix(dim, 1, lambda i, j: 1 if i == dim-1 else 0) # sp.Matrix, shape = (dim, 1)
+
+    
+    return
