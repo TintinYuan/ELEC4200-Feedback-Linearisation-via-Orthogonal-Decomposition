@@ -284,11 +284,12 @@ def is_curl_free(F, vars=None):
     return [sp.simplify(comp) for comp in curl]
 
 
-def linear_dynamics(h, dim):
+def linear_dynamics(dim, h, variables):
 
     Ac = sp.Matrix(dim, dim, lambda i, j: 1 if j == i+1 else 0) # sp.Matrix, shape = (dim, dim)
 
     Bc = sp.Matrix(dim, 1, lambda i, j: 1 if i == dim-1 else 0) # sp.Matrix, shape = (dim, 1)
 
+    
     
     return
