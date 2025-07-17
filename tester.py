@@ -56,8 +56,9 @@ if Lgh == 0 and LgLfh == 0 and LgLf2h != 0:
 else:
     print("\nWarning: System doesn't have relative degree 3")
 
-# Define sinusoidal input for the original system
+# TAG Define sinusoidal input for the original system
 def sinusoidal_input(t):
+    # return 20.0 * np.exp(-t) + 0.1
     return 1.0 * np.sin(1.0 * t)
 
 # Function to compute v = Lf³h(x) + LgLf²h(x)*u
@@ -96,6 +97,10 @@ def original_system(t, x):
     
     # Apply sinusoidal control input
     u_val = sinusoidal_input(t)
+
+    # Transformn input from v to u
+    # v_val = sinusoidal_input(t)
+    # u_val = compute_u(x, v_val)
     
     # Original system dynamics
     dx1dt = -x1_val + u_val
@@ -113,10 +118,8 @@ def linearized_system(t, z, original_sol):
     idx = np.argmin(np.abs(original_sol.t - t))
     x_val = np.array([original_sol.y[0, idx], original_sol.y[1, idx], original_sol.y[2, idx]])
     
-    # Get the input at this time
-    u_val = sinusoidal_input(t)
-    
     # Transform the input
+    u_val = sinusoidal_input(t)
     v_val = compute_v(x_val, u_val)
     
     # Chain of integrators dynamics
@@ -128,7 +131,7 @@ def linearized_system(t, z, original_sol):
     return np.array([dz1dt, dz2dt, dz3dt])
 
 # Simulation parameters
-t_span = (0, 10)
+t_span = (0, 2)
 t_eval = np.linspace(t_span[0], t_span[1], 10000)
 x0 = np.array([1.0, 0.5, 0.2])
 
@@ -174,8 +177,14 @@ for i in range(len(sol_orig.t)):
     x_val = [sol_orig.y[0, i], sol_orig.y[1, i], sol_orig.y[2, i]]
     v_vals[i] = compute_v(x_val, u_vals[i])
 
-# Plot the results
-plt.figure(figsize=(15, 12))
+# v_vals = np.array([sinusoidal_input(t) for t in sol_lin.t])
+# u_vals = np.zeros_like(v_vals)
+# for i in range(len(sol_orig.t)):
+#     x_val =  [sol_orig.y[0, i], sol_orig.y[1, i], sol_orig.y[2, i]]
+#     u_vals[i] = compute_u(x_val, v_vals[i])
+
+# SUPTAG Plot the results
+plt.figure(figsize=(10, 8))
 
 # Plot original system states
 plt.subplot(2, 2, 1)
@@ -225,7 +234,7 @@ plt.savefig('exact_trajectory_comparison_part1.png')
 plt.show()
 
 # Create a direct comparison of each state
-plt.figure(figsize=(15, 5))
+plt.figure(figsize=(9, 3))
 
 # Compare z₁
 plt.subplot(1, 3, 1)
