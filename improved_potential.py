@@ -1,441 +1,192 @@
 import numpy as np
 import sympy as sp
+from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
-from scipy.optimize import minimize
 
-# Define your variables
+t_span = (0, 10)
+t_eval = np.linspace(t_span[0], t_span[1], 1000)
+x0 = np.array([1.0, -0.2, 0.2])
+
 x1, x2, x3 = sp.symbols('x1 x2 x3')
+variable_x = sp.Matrix([x1, x2, x3])
+n_dim = variable_x.shape[0]
 
-# Define the field components
-F1 = 0
-F2 = 35.9987702689914*x2*(0.993819554534266*x2**2 + 0.110424398025967*x3**2)/(9*x2**2 + x3**2)
-F3 = 11.9995900896638*x3*(0.993819554534266*x2**2 + 0.110424398025967*x3**2)/(9*x2**2 + x3**2)
+# Original system dynamics
+fx = sp.Matrix([
+    -x1,
+    -2*x2 - x1*x3,
+    3*x1*x2
+])
 
-# The field has a specific structure that suggests a potential of the form:
-# Phi(x2, x3) = f(x2, x3) / (9*x2**2 + x3**2)
-# This is based on the structure of the F2 and F3 terms
+gx = sp.Matrix([
+    1,
+    0,
+    0
+])
 
-def simple_approximation():
-    """
-    Create a simplified form based on the structure of the vector field
-    """
-    # Looking at F2 and F3, we can see they have a common term in the numerator
-    # and the same denominator. This suggests a potential function of the form:
-    # Phi(x2, x3) = g(x2, x3) / (9*x2**2 + x3**2)
-    
-    # The numerator should give us F2 and F3 when differentiated
-    # From observation of the structure, a good candidate is:
-    k = sp.symbols('k')
-    potential = k * (0.993819554534266*x2**2 + 0.110424398025967*x3**2) / sp.sqrt(9*x2**2 + x3**2)
-    
-    # Calculate the gradient
-    grad_potential = [
-        sp.diff(potential, x1),  # Should be 0
-        sp.diff(potential, x2),
-        sp.diff(potential, x3)
-    ]
-    
-    # Find the value of k that minimizes error
-    F2_func = sp.lambdify([x1, x2, x3], F2, "numpy")
-    F3_func = sp.lambdify([x1, x2, x3], F3, "numpy")
-    grad2_func = sp.lambdify([x1, x2, x3, k], grad_potential[1], "numpy")
-    grad3_func = sp.lambdify([x1, x2, x3, k], grad_potential[2], "numpy")
-    
-    # Sample points
-    sample_points = np.array([
-        [0, 1, 1],
-        [0, 2, 1],
-        [0, 1, 2],
-        [0, 0.5, 0.5],
-        [0, -1, 1],
-        [0, 1, -1]
-    ])
-    
-    def objective(k_val):
-        error = 0
-        for point in sample_points:
-            try:
-                F2_val = F2_func(*point)
-                F3_val = F3_func(*point)
-                grad2_val = grad2_func(*point, k_val[0])
-                grad3_val = grad3_func(*point, k_val[0])
-                error += (F2_val - grad2_val)**2 + (F3_val - grad3_val)**2
-            except:
-                error += 1e6
-        return error
-    
-    # Find optimal k
-    result = minimize(objective, [1.0], method='Nelder-Mead')
-    k_optimal = result.x[0]
-    
-    print(f"Optimal k value: {k_optimal}")
-    print(f"Final error: {result.fun}")
-    
-    # Substitute the optimal value
-    final_potential = potential.subs(k, k_optimal)
-    
-    return final_potential
+h = 1.98789561912197*x2**2 - 0.66263184896675*x3**2
 
-def structure_based_approximation():
-    """
-    Create a more sophisticated form based on the structure of the field
-    """
-    # Based on examining F2 and F3, we see they have common form
-    # F2 = x2 * h(x2, x3) / (9*x2**2 + x3**2)
-    # F3 = x3 * h(x2, x3) / (9*x2**2 + x3**2)
-    # where h(x2, x3) = constant * (0.993819554534266*x2**2 + 0.110424398025967*x3**2)
-    
-    # This suggests a potential of the form:
-    # Phi(x2, x3) = k * log(sqrt(9*x2**2 + x3**2)) * (0.993819554534266*x2**2 + 0.110424398025967*x3**2)
-    k = sp.symbols('k')
-    potential_candidates = [
-        # Candidate 1: Based on logarithmic form suggested by the field structure
-        k * sp.log(sp.sqrt(9*x2**2 + x3**2)) * (0.993819554534266*x2**2 + 0.110424398025967*x3**2),
-        
-        # Candidate 2: Direct multiple of the common term
-        k * (0.993819554534266*x2**2 + 0.110424398025967*x3**2),
-        
-        # Candidate 3: Square root form
-        k * sp.sqrt(9*x2**2 + x3**2) * (0.993819554534266*x2**2 + 0.110424398025967*x3**2),
-        
-        # Candidate 4: Rational form
-        k * (0.993819554534266*x2**2 + 0.110424398025967*x3**2) / sp.sqrt(9*x2**2 + x3**2)
-    ]
-    
-    best_potential = None
-    best_error = float('inf')
-    best_k = None
-    
-    for i, potential in enumerate(potential_candidates):
-        # Calculate the gradient
-        grad_potential = [
-            sp.diff(potential, x1),  # Should be 0
-            sp.diff(potential, x2),
-            sp.diff(potential, x3)
-        ]
-        
-        # Create lambdified functions
-        F2_func = sp.lambdify([x1, x2, x3], F2, "numpy")
-        F3_func = sp.lambdify([x1, x2, x3], F3, "numpy")
-        grad2_func = sp.lambdify([x1, x2, x3, k], grad_potential[1], "numpy")
-        grad3_func = sp.lambdify([x1, x2, x3, k], grad_potential[2], "numpy")
-        
-        # Sample points
-        sample_points = np.array([
-            [0, 1, 1],
-            [0, 2, 1],
-            [0, 1, 2],
-            [0, 0.5, 0.5],
-            [0, -1, 1],
-            [0, 1, -1]
-        ])
-        
-        def objective(k_val):
-            error = 0
-            for point in sample_points:
-                try:
-                    F2_val = F2_func(*point)
-                    F3_val = F3_func(*point)
-                    grad2_val = grad2_func(*point, k_val[0])
-                    grad3_val = grad3_func(*point, k_val[0])
-                    error += (F2_val - grad2_val)**2 + (F3_val - grad3_val)**2
-                except:
-                    error += 1e6
-            return error
-        
-        # Find optimal k
-        result = minimize(objective, [1.0], method='Nelder-Mead')
-        k_optimal = result.x[0]
-        
-        print(f"Candidate {i+1}:")
-        print(f"  Optimal k value: {k_optimal}")
-        print(f"  Final error: {result.fun}")
-        
-        if result.fun < best_error:
-            best_error = result.fun
-            best_potential = potential
-            best_k = k_optimal
-    
-    # Substitute the optimal value
-    final_potential = best_potential.subs(k, best_k)
-    
-    return final_potential, best_error
+# Compute Lie derivatives for initial z-coordinates
+Lfh = (h.diff(variable_x).T*fx)[0]
+Lf2h = (Lfh.diff(variable_x).T*fx)[0]
+Lf3h = (Lf2h.diff(variable_x).T*fx)[0]
+LgLf2h = (Lf2h.diff(variable_x).T*gx)[0]
 
-def comprehensive_approximation():
-    """
-    Try a more comprehensive approximation with multiple parameters
-    """
-    # Define parameters
-    a, b, c, d = sp.symbols('a b c d')
-    
-    # Try a more general form
-    potential = (a * (0.993819554534266*x2**2 + 0.110424398025967*x3**2) + 
-                b * sp.sqrt(9*x2**2 + x3**2) + 
-                c * sp.log(9*x2**2 + x3**2) * (0.993819554534266*x2**2 + 0.110424398025967*x3**2) +
-                d)
-    
-    # Calculate the gradient
-    grad_potential = [
-        sp.diff(potential, x1),  # Should be 0
-        sp.diff(potential, x2),
-        sp.diff(potential, x3)
-    ]
-    
-    # Create lambdified functions
-    F2_func = sp.lambdify([x1, x2, x3], F2, "numpy")
-    F3_func = sp.lambdify([x1, x2, x3], F3, "numpy")
-    grad2_func = sp.lambdify([x1, x2, x3, a, b, c, d], grad_potential[1], "numpy")
-    grad3_func = sp.lambdify([x1, x2, x3, a, b, c, d], grad_potential[2], "numpy")
-    
-    # Sample points
-    sample_points = np.array([
-        [0, 1, 1],
-        [0, 2, 1],
-        [0, 1, 2],
-        [0, 0.5, 0.5],
-        [0, -1, 1],
-        [0, 1, -1],
-        [0, 2, 2],
-        [0, 0.1, 0.1]
-    ])
-    
-    def objective(params):
-        error = 0
-        for point in sample_points:
-            try:
-                F2_val = F2_func(*point)
-                F3_val = F3_func(*point)
-                grad2_val = grad2_func(*point, *params)
-                grad3_val = grad3_func(*point, *params)
-                error += (F2_val - grad2_val)**2 + (F3_val - grad3_val)**2
-            except Exception as e:
-                error += 1e6
-        return error
-    
-    # Find optimal parameters
-    result = minimize(objective, [0, 0, 1, 0], method='Nelder-Mead', options={'maxiter': 10000})
-    optimal_params = result.x
-    
-    print(f"Optimal parameters: a={optimal_params[0]}, b={optimal_params[1]}, c={optimal_params[2]}, d={optimal_params[3]}")
-    print(f"Final error: {result.fun}")
-    
-    # Substitute the optimal values
-    final_potential = potential.subs({a: optimal_params[0], b: optimal_params[1], 
-                                    c: optimal_params[2], d: optimal_params[3]})
-    
-    return final_potential, result.fun
+# Create lambda functions for numerical evaluation
+h_func = sp.lambdify((x1, x2, x3), h, "numpy")
+Lfh_func = sp.lambdify((x1, x2, x3), Lfh, "numpy")
+Lf2h_func = sp.lambdify((x1, x2, x3), Lf2h, "numpy")
+Lf3h_func = sp.lambdify((x1, x2, x3), Lf3h, "numpy")
+LgLf2h_func = sp.lambdify((x1, x2, x3), LgLf2h, "numpy")
 
-def validate_potential(potential, F1, F2, F3, x1, x2, x3):
-    """
-    Validate the approximated potential by comparing its gradient with the original field
-    """
-    gradient = [
-        sp.diff(potential, x1),
-        sp.diff(potential, x2),
-        sp.diff(potential, x3)
-    ]
-    
-    print("\nGradient of potential:")
-    print(f"d/dx1 = {sp.simplify(gradient[0])}")
-    print(f"d/dx2 = {sp.simplify(gradient[1])}")
-    print(f"d/dx3 = {sp.simplify(gradient[2])}")
-    
-    # Calculate error
-    error = [F1 - gradient[0], F2 - gradient[1], F3 - gradient[2]]
-    
-    print("\nError in each component:")
-    print(f"Error_x1 = {sp.simplify(error[0])}")
-    print(f"Error_x2 = {sp.simplify(error[1])}")
-    print(f"Error_x3 = {sp.simplify(error[2])}")
-    
-    # Create lambdified functions for field and gradient
-    F_funcs = [sp.lambdify([x1, x2, x3], F, "numpy") for F in [F1, F2, F3]]
-    grad_funcs = [sp.lambdify([x1, x2, x3], g, "numpy") for g in gradient]
-    
-    # Sample points
-    sample_points = [
-        (0, 1, 1),
-        (0, 2, 1),
-        (0, 1, 2),
-        (0, -1, 1),
-        (0, 1, -1),
-        (0, 2, 2)
-    ]
-    
-    total_error = 0
-    for point in sample_points:
-        point_error = 0
-        for i in range(3):
-            try:
-                field_val = F_funcs[i](*point)
-                grad_val = grad_funcs[i](*point)
-                point_error += (field_val - grad_val)**2
-            except Exception as e:
-                print(f"Error at point {point}, component {i}: {e}")
-                point_error += 1e6
-        
-        total_error += point_error
-        print(f"Error at point {point}: {np.sqrt(point_error)}")
-    
-    mean_error = total_error / len(sample_points)
-    print(f"\nMean squared error: {mean_error}")
-    
-    return mean_error
+# TODO if sinusoidal don't work, change it to constant
+def sinusoidal_v_input(t):
+    """Sinusoidal control input v for the linearized system"""
+    return 1 * np.sin(1.0 * t)
+    # return 1.0
 
-def plot_field_vs_gradient(potential, F1, F2, F3, x1, x2, x3):
+def compute_initial_z_coordinates(h_expr, fx, variable_x, x0_val, n_dim):
     """
-    Plot the original field vs gradient of the approximated potential
+    Compute initial z-coordinates for n-dimensional linearized system
+    
+    Args:
+        h_expr: symbolic output function h(x)
+        fx: symbolic vector field f(x)
+        variable_x: symbolic variable vector
+        x0_val: initial state values
+        n_dim: desired dimension of z-coordinates
+    
+    Returns:
+        z0: initial z-coordinates array
     """
-    gradient = [
-        sp.diff(potential, x1),
-        sp.diff(potential, x2),
-        sp.diff(potential, x3)
-    ]
+    # Compute Lie derivatives up to order n_dim-1
+    lie_derivatives = [h_expr]  # L^0_f h = h
     
-    # Create lambdified functions
-    F2_func = sp.lambdify([x1, x2, x3], F2, "numpy")
-    F3_func = sp.lambdify([x1, x2, x3], F3, "numpy")
-    grad2_func = sp.lambdify([x1, x2, x3], gradient[1], "numpy")
-    grad3_func = sp.lambdify([x1, x2, x3], gradient[2], "numpy")
-    pot_func = sp.lambdify([x1, x2, x3], potential, "numpy")
+    for i in range(n_dim - 1):
+        # Compute L^{i+1}_f h
+        lie_deriv = (lie_derivatives[i].diff(variable_x).T * fx)[0]
+        lie_derivatives.append(lie_deriv)
     
-    # Create grid
-    x2_vals = np.linspace(-3, 3, 30)
-    x3_vals = np.linspace(-3, 3, 30)
-    X2, X3 = np.meshgrid(x2_vals, x3_vals)
+    # Create lambda functions and evaluate at x0
+    z0 = np.zeros(n_dim)
+    for i in range(n_dim):
+        lie_func = sp.lambdify(tuple(variable_x), lie_derivatives[i], "numpy")
+        z0[i] = lie_func(*x0_val)
     
-    # Evaluate field and gradient
-    F2_vals = np.zeros_like(X2)
-    F3_vals = np.zeros_like(X3)
-    grad2_vals = np.zeros_like(X2)
-    grad3_vals = np.zeros_like(X3)
-    pot_vals = np.zeros_like(X2)
-    
-    for i in range(len(x2_vals)):
-        for j in range(len(x3_vals)):
-            try:
-                x2_val = x2_vals[i]
-                x3_val = x3_vals[j]
-                F2_vals[j, i] = F2_func(0, x2_val, x3_val)
-                F3_vals[j, i] = F3_func(0, x2_val, x3_val)
-                grad2_vals[j, i] = grad2_func(0, x2_val, x3_val)
-                grad3_vals[j, i] = grad3_func(0, x2_val, x3_val)
-                pot_vals[j, i] = pot_func(0, x2_val, x3_val)
-            except Exception as e:
-                pass
-    
-    # Create figure
-    plt.figure(figsize=(15, 12))
-    
-    # Plot original field
-    plt.subplot(221)
-    plt.quiver(X2, X3, F2_vals, F3_vals, scale=500)
-    plt.title('Original Vector Field [F2, F3]')
-    plt.xlabel('x2')
-    plt.ylabel('x3')
-    plt.grid(True)
-    
-    # Plot gradient of potential
-    plt.subplot(222)
-    plt.quiver(X2, X3, grad2_vals, grad3_vals, scale=500)
-    plt.title('Gradient of Approximated Potential')
-    plt.xlabel('x2')
-    plt.ylabel('x3')
-    plt.grid(True)
-    
-    # Plot error magnitude
-    plt.subplot(223)
-    error_mag = np.sqrt((F2_vals - grad2_vals)**2 + (F3_vals - grad3_vals)**2)
-    plt.pcolormesh(X2, X3, np.log1p(error_mag), shading='auto', cmap='hot')
-    plt.colorbar(label='Log Error Magnitude')
-    plt.title('Log Error Magnitude')
-    plt.xlabel('x2')
-    plt.ylabel('x3')
-    
-    # Plot approximated potential
-    plt.subplot(224)
-    plt.contourf(X2, X3, pot_vals, 30, cmap='viridis')
-    plt.colorbar(label='Potential Value')
-    plt.title('Approximated Scalar Potential')
-    plt.xlabel('x2')
-    plt.ylabel('x3')
-    
-    plt.tight_layout()
-    plt.savefig('potential_approximation.png', dpi=300)
-    plt.close()
+    return z0
 
-def main():
-    # Check if the field has curl
-    curl_x = sp.diff(F3, x2) - sp.diff(F2, x3)
-    curl_y = sp.diff(F1, x3) - sp.diff(F3, x1)
-    curl_z = sp.diff(F2, x1) - sp.diff(F1, x2)
-    
-    print("Curl components:")
-    print(f"curl_x = {sp.simplify(curl_x)}")
-    print(f"curl_y = {sp.simplify(curl_y)}")
-    print(f"curl_z = {sp.simplify(curl_z)}")
-    
-    print("\n1. Using simple approximation")
-    simple_potential = simple_approximation()
-    simple_error = validate_potential(simple_potential, F1, F2, F3, x1, x2, x3)
-    
-    print("\n2. Using structure-based approximation")
-    structure_potential, structure_error = structure_based_approximation()
-    validate_potential(structure_potential, F1, F2, F3, x1, x2, x3)
-    
-    print("\n3. Using comprehensive approximation")
-    comprehensive_potential, comp_error = comprehensive_approximation()
-    validate_potential(comprehensive_potential, F1, F2, F3, x1, x2, x3)
-    
-    # Find the best potential
-    potentials = [
-        ("Simple", simple_potential, simple_error),
-        ("Structure-based", structure_potential, structure_error),
-        ("Comprehensive", comprehensive_potential, comp_error)
-    ]
-    
-    best_name, best_potential, best_error = min(potentials, key=lambda x: x[2])
-    
-    print(f"\nBest approximation: {best_name} with error {best_error}")
-    print(f"Best potential: {sp.simplify(best_potential)}")
-    
-    # Plot the best potential
-    plot_field_vs_gradient(best_potential, F1, F2, F3, x1, x2, x3)
-    
-    # Save to file
-    with open('potential_approximation.txt', 'w') as f:
-        f.write("Vector Field Approximation Results\n")
-        f.write("=================================\n\n")
-        
-        f.write("Original Vector Field:\n")
-        f.write(f"F1 = {F1}\n")
-        f.write(f"F2 = {F2}\n")
-        f.write(f"F3 = {F3}\n\n")
-        
-        f.write("Curl Components:\n")
-        f.write(f"curl_x = {sp.simplify(curl_x)}\n")
-        f.write(f"curl_y = {sp.simplify(curl_y)}\n")
-        f.write(f"curl_z = {sp.simplify(curl_z)}\n\n")
-        
-        f.write("Best Approximation Method: " + best_name + "\n")
-        f.write(f"Error: {best_error}\n\n")
-        
-        f.write("Approximated Scalar Potential:\n")
-        f.write(f"Phi = {sp.simplify(best_potential)}\n\n")
-        
-        # Gradient
-        gradient = [sp.diff(best_potential, var) for var in [x1, x2, x3]]
-        f.write("Gradient of Potential:\n")
-        for i, var in enumerate([x1, x2, x3]):
-            f.write(f"d/d{var} = {sp.simplify(gradient[i])}\n")
-        
-        # Error
-        error = [F1 - gradient[0], F2 - gradient[1], F3 - gradient[2]]
-        f.write("\nError in each component:\n")
-        for i, var in enumerate([x1, x2, x3]):
-            f.write(f"Error_{var} = {sp.simplify(error[i])}\n")
-        
-        f.write("\nA visualization of the field and potential has been saved as 'potential_approximation.png'")
+# For 3D (current case):
+z0_3d = compute_initial_z_coordinates(h, fx, variable_x, x0, n_dim)  # Already computed above
 
-if __name__ == "__main__":
-    main()
+
+# Use the 3D case for this simulation
+z0_current = z0_3d
+print(f"Initial z-coordinates: z0 = {z0_current}")
+print(f"Dimension of z: {len(z0_current)}")
+
+def original_system(t, x):
+
+    n = len(x) # Number of variables
+
+    Lf3h_val = Lf3h_func(x[0], x[1], x[2])
+    LgLf2h_val = LgLf2h_func(x[0], x[1], x[2])
+
+    u_val = (sinusoidal_v_input(t) - Lf3h_val)/LgLf2h_val
+
+    # Original system dynamics
+    dx1dt = -x[0] + u_val
+    dx2dt = -2*x[1] - x[0]*x[2]
+    dx3dt = 3*x[0]*x[1]
+    
+    return np.array([dx1dt, dx2dt, dx3dt])
+
+
+
+def linearised_system(t, z):
+    """
+    Linearised system dynamics in z-coordinates with input v
+    
+    Args:
+        t: time
+        z: state vector of dimension n
+    
+    Returns:
+        dz: derivative of state vector
+    """
+    n = len(z)
+    
+    # Get the control input
+    v = sinusoidal_v_input(t)
+    
+    # Initialize derivative vector
+    dz = np.zeros(n)
+    
+    # Chain of integrators: ż_i = z_{i+1} for i = 1, ..., n-1
+    for i in range(n-1):
+        dz[i] = z[i+1]
+    
+    # Last equation: żₙ = v(t)
+    dz[n-1] = v
+    
+    return dz
+
+print("Simulating original system...")
+sol_ori = solve_ivp(
+    original_system,
+    t_span,
+    x0,
+    t_eval = t_eval,
+    method='RK45'
+)
+
+z_ori = np.zeros((n_dim, len(sol_ori.t)))
+for i in range(len(sol_ori.t)):
+    x_val = sol_ori.y[:, i]
+    z_ori[0, i] = h_func(*x_val)
+    z_ori[1, i] = Lfh_func(*x_val)
+    z_ori[2, i] = Lf2h_func(*x_val)
+
+print("Simulating linearised system...")
+sol_lin = solve_ivp(
+    linearised_system,
+    t_span,
+    z0_current,
+    t_eval=t_eval,
+    method='RK45'
+)
+
+plt.figure(figsize=(10, 8))
+color_map = ['r', 'g', 'b', 'm', 'o']
+plt.subplot(2, 2, 1)
+for i in range(n_dim):
+    plt.plot(sol_lin.t, sol_lin.y[i], color_map[i], label=f"z{i+1} (linearised)")
+plt.xlabel('Time t')
+plt.ylabel('States')
+plt.title('Linearised system states')
+plt.grid(True)
+plt.legend()
+
+plt.subplot(2, 2, 2)
+for i in range(n_dim):
+    plt.plot(sol_ori.t, sol_ori.y[i], color_map[i], label=f"x{i+1} (original)")
+plt.xlabel('Time t')
+plt.ylabel('States')
+plt.title('Original system states')
+plt.grid(True)
+plt.legend()
+
+plt.subplot(2, 2, 3)
+for i in range(n_dim):
+    plt.plot(sol_ori.t, z_ori[i], color_map[i], label=f"z{i+1} (original)")
+plt.xlabel('Time t')
+plt.ylabel('States')
+plt.title('Original systems states (transformed)')
+plt.grid(True)
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+
+print(f"Simulation completed successfully!")
+print(f"Final z-coordinates: {sol_lin.y[:, -1]}")
+print(f"System dimension: {len(z0_current)}")
