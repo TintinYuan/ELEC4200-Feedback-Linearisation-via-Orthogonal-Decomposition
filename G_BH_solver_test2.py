@@ -53,6 +53,7 @@ grad_vector = poly_p * orthogonal_vector # Bug fixed by adding RationalMatrix in
 
 J_grad = grad_vector.jacobian(variable_x)
 
+# TODO implement for all diagonal entry
 diff = sp.expand(J_grad[2, 1].num) - sp.expand(J_grad[1, 2].num)
 
 # Convert to a polynomial in x1, x2 and x3
@@ -156,6 +157,7 @@ grad_vec_sp = sp.Matrix([poly_p_expr * expr for expr in orth_vec])
 curl = is_curl_free(grad_vec_sp, (x1, x2, x3))
 
 # TAG integration result
+h = symbolic_integration(grad_vec_sp, [x1, x2, x3]) 
 h = symbolic_integration(sp.nsimplify(grad_vec_sp), [x1, x2, x3]) # type = <class 'sympy.core.add.Add'>
 with open('results.txt', 'w') as f:
     f.write(f"Total unique solutions found: {len(solutions)}\n\n")

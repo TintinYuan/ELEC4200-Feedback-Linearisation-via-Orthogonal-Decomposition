@@ -75,7 +75,8 @@ def lie_bracket2(f, g, variables):
 
 def func_chooser(num):
     x1, x2, x3 = sp.symbols('x1 x2 x3')
-
+    # a = 1; b = 2; c = 1; theta = 3; k = 0
+    a = 1; b = 2; c = 1; theta = 1; k = 2
     match num:
         case 1:
             fx = sp.Matrix([-x1 + x1*x2,
@@ -89,9 +90,9 @@ def func_chooser(num):
             return fx, gx
             
         case 2:
-            fx = sp.Matrix([-x1,
-                            -2*x2 - x1*x3,
-                            3*x1*x2])
+            fx = sp.Matrix([-a * x1,
+                            -b*x2 + k - c * x1*x3,
+                            theta*x1*x2])
             
             gx = sp.Matrix([1,# x1*x2
                             0, # x2
@@ -113,7 +114,8 @@ def func_chooser(num):
 # Ur version of func_chooser
 def func_chooser2(num):
     x1, x2, x3 = sp.symbols("x1 x2 x3")
-
+    # a = 1; b = 2; c = 1; theta = 3; k = 0
+    a = 1; b = 2; c = 1; theta = 3; k = 2
     match num:
         case 1:
             fx = ur.RationalMatrix([
@@ -130,9 +132,9 @@ def func_chooser2(num):
             return fx, gx
         case 2:
             fx = ur.RationalMatrix([
-                [ur.UncanceledRational(-x1)],
-                [ur.UncanceledRational(-2*x2 - x1*x3)],
-                [ur.UncanceledRational(3*x1*x2)]
+                [ur.UncanceledRational(-a * x1)],
+                [ur.UncanceledRational(-b*x2 + k - c * x1*x3)],
+                [ur.UncanceledRational(theta*x1*x2)]
             ])
 
             gx = ur.RationalMatrix([
@@ -209,6 +211,8 @@ def zero_small_coefficients(expr, threshold=1e-5):
     in a SymPy expression object
     """
     # If the expression is just a number
+    expr = sp.expand(expr)
+
     if expr.is_Number:
         return sp.Integer(0) if abs(float(expr)) < threshold else expr
     
@@ -216,13 +220,13 @@ def zero_small_coefficients(expr, threshold=1e-5):
     if expr.is_Add:
         return sp.Add(*[zero_small_coefficients(term, threshold) for term in expr.args])
     
-    # For Mul expressions (products of factors)
-    elif expr.is_Mul:
-        # Extract the coefficient and the rest of the expression
-        coeff, rest = expr.as_coeff_Mul()
-        if abs(float(coeff)) < threshold:
-            return sp.Integer(0)
-        return coeff * zero_small_coefficients(rest, threshold)
+    # # For Mul expressions (products of factors)
+    # elif expr.is_Mul:
+    #     # Extract the coefficient and the rest of the expression
+    #     coeff, rest = expr.as_coeff_Mul()
+    #     if abs(float(coeff)) < threshold:
+    #         return sp.Integer(0)
+    #     return coeff * rest
     
     # For expressions with powers, functions, etc.
     elif expr.args:
@@ -247,9 +251,11 @@ def symbolic_integration(grad_vec, vars):
 
     h = 0
     for i in range(dim):
+        h = zero_small_coefficients(h)
         grad = grad_vec[i]
         remaining = grad - sp.diff(h, vars[i])
-        remaining = sp.simplify(sp.expand(remaining))
+        remaining = zero_small_coefficients(remaining)
+        # remaining = sp.simplify(sp.expand(remaining))
         # remaining = clean_small_coeffs(remaining, tolerance=1e-4)
         h += sp.integrate(remaining, vars[i])
 

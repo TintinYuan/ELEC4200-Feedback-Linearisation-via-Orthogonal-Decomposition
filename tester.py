@@ -2,6 +2,7 @@ import numpy as np
 import sympy as sp
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
+from utils import zero_small_coefficients
 
 # Current date and time information
 print(f"Simulation executed on: 2025-07-16 07:36:05 UTC")
@@ -25,7 +26,8 @@ gx = sp.Matrix([
 ])
 
 # Output function
-h = 1.98789561912197*x2**2 - 0.66263184896675*x3**2
+h = -1.98789561912197*x2**2 - 0.66263184896675*x3**2
+# h = 3 * x2 ** 2 + x3 ** 2 # NOTE test output function
 
 # Compute Lie derivatives
 Lfh = h.diff(x1)*fx[0] + h.diff(x2)*fx[1] + h.diff(x3)*fx[2]
@@ -35,6 +37,11 @@ Lf3h = Lf2h.diff(x1)*fx[0] + Lf2h.diff(x2)*fx[1] + Lf2h.diff(x3)*fx[2]
 Lgh = h.diff(x1)*gx[0] + h.diff(x2)*gx[1] + h.diff(x3)*gx[2]
 LgLfh = Lfh.diff(x1)*gx[0] + Lfh.diff(x2)*gx[1] + Lfh.diff(x3)*gx[2]
 LgLf2h = Lf2h.diff(x1)*gx[0] + Lf2h.diff(x2)*gx[1] + Lf2h.diff(x3)*gx[2]
+
+# TAG clean trival zero coefficient
+Lgh = zero_small_coefficients(sp.expand(Lgh))
+LgLfh = zero_small_coefficients(sp.expand(LgLfh))
+LgLf2h = zero_small_coefficients(sp.expand(LgLf2h))
 
 # Create lambda functions for numerical evaluation
 h_func = sp.lambdify((x1, x2, x3), h, "numpy")
@@ -131,7 +138,7 @@ def linearized_system(t, z, original_sol):
     return np.array([dz1dt, dz2dt, dz3dt])
 
 # Simulation parameters
-t_span = (0, 2)
+t_span = (0, 15)
 t_eval = np.linspace(t_span[0], t_span[1], 10000)
 x0 = np.array([1.0, 0.5, 0.2])
 
