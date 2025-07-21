@@ -208,33 +208,83 @@ def clean_small_coeffs(expr, tolerance=1e-4):
 def zero_small_coefficients(expr, threshold=1e-5):
     """
     Replace coefficients with absolute value less than threshold with zero
-    in a SymPy expression object
+    in a SymPy expression object.
+    
+    Args:
+        expr (sympy.Expr or numeric): The expression to process
+        threshold (float): Threshold below which coefficients are zeroed
+        
+    Returns:
+        sympy.Expr: Expression with small coefficients removed
     """
+    # Handle non-expression inputs
+    if expr is None:
+        return None
+    
+    # Handle Python numeric types (int, float, complex)
+    if isinstance(expr, (int, float, complex)):
+        if abs(expr) < threshold:
+            return sp.Integer(0)
+        return sp.sympify(expr)
+    
     # If the expression is just a number
-    expr = sp.expand(expr)
-
     if expr.is_Number:
-        return sp.Integer(0) if abs(float(expr)) < threshold else expr
+        try:
+            return sp.Integer(0) if abs(float(expr)) < threshold else expr
+        except (ValueError, TypeError):
+            # Handle special values like Infinity or symbolic numbers
+            return expr
     
     # For Add expressions (sums of terms)
     if expr.is_Add:
-        return sp.Add(*[zero_small_coefficients(term, threshold) for term in expr.args])
+        result = sp.Integer(0)
+        for term in expr.args:
+            processed_term = zero_small_coefficients(term, threshold)
+            if processed_term != 0:
+                result += processed_term
+        return result
     
-    # # For Mul expressions (products of factors)
-    # elif expr.is_Mul:
-    #     # Extract the coefficient and the rest of the expression
-    #     coeff, rest = expr.as_coeff_Mul()
-    #     if abs(float(coeff)) < threshold:
-    #         return sp.Integer(0)
-    #     return coeff * rest
+    # For Mul expressions (products of factors)
+    if expr.is_Mul:
+        # Process each factor individually rather than recursively calling on 'rest'
+        factors = expr.as_ordered_factors()
+        processed_factors = []
+        
+        for factor in factors:
+            processed_factor = zero_small_coefficients(factor, threshold)
+            if processed_factor == 0:
+                # If any factor is zero, the entire product is zero
+                return sp.Integer(0)
+            processed_factors.append(processed_factor)
+        
+        # Multiply all processed factors together
+        if processed_factors:
+            return sp.Mul(*processed_factors)
+        return sp.Integer(1)  # Empty product is 1
     
-    # For expressions with powers, functions, etc.
-    elif expr.args:
+    # For Pow expressions (powers)
+    if expr.is_Pow:
+        base = zero_small_coefficients(expr.base, threshold)
+        if base == 0:
+            # 0^anything is 0 (except 0^0, which is 1)
+            if expr.exp == 0:
+                return sp.Integer(1)
+            return sp.Integer(0)
+        # Process the exponent only if it's not a simple integer
+        if not expr.exp.is_Integer:
+            exp = zero_small_coefficients(expr.exp, threshold)
+            return base ** exp
+        return base ** expr.exp
+    
+    # For expressions with other structures (functions, etc.)
+    if expr.args:
         new_args = [zero_small_coefficients(arg, threshold) for arg in expr.args]
         return expr.func(*new_args)
     
-    # For atomic expressions like symbols
+    # For symbols and other atomic expressions
     return expr
+
+
 # Symbolic integration
 def symbolic_integration(grad_vec, vars):
     """

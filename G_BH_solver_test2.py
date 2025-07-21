@@ -54,23 +54,26 @@ grad_vector = poly_p * orthogonal_vector # Bug fixed by adding RationalMatrix in
 J_grad = grad_vector.jacobian(variable_x)
 
 # TODO implement for all diagonal entry
-diff = sp.expand(J_grad[2, 1].num) - sp.expand(J_grad[1, 2].num)
-
-# Convert to a polynomial in x1, x2 and x3
-poly = sp.Poly(diff, list(variable_x))
-
-# Get the coefficient dictionary
-coeff_dict = poly.as_dict()
-
-# # Collect terms with respect to powers of x2 and x3
-# collected = sp.collect(diff, [x1, x2, x3], evaluate=False)
-
-# # Extract constraints (coefficients must be zero for equality)
 constraints = []
-for _, coef in coeff_dict.items():
-    if coef != 0:
-        constraints.append(coef)
+for i in range(J_grad.shape[0]):
+    for j in range(i + 1, J_grad.shape[1]):
 
+        diff = sp.expand(J_grad[i, j].num) - sp.expand(J_grad[j, i].num)
+
+        # Convert to a polynomial in x1, x2 and x3
+        poly = sp.Poly(diff, list(variable_x))
+
+        # Get the coefficient dictionary
+        coeff_dict = poly.as_dict()
+
+        # # Collect terms with respect to powers of x2 and x3
+        # collected = sp.collect(diff, [x1, x2, x3], evaluate=False)
+
+        for _, coef in coeff_dict.items():
+            if coef != 0:
+                constraints.append(coef)
+
+# TAG norm constraint on both num and den
 c_norm1 = 0; c_norm2 = 0
 for i in range(n_coeffs):
     c_norm1 += theta[i] ** 2
@@ -157,8 +160,8 @@ grad_vec_sp = sp.Matrix([poly_p_expr * expr for expr in orth_vec])
 curl = is_curl_free(grad_vec_sp, (x1, x2, x3))
 
 # TAG integration result
-h = symbolic_integration(grad_vec_sp, [x1, x2, x3]) 
-h = symbolic_integration(sp.nsimplify(grad_vec_sp), [x1, x2, x3]) # type = <class 'sympy.core.add.Add'>
+# h = symbolic_integration(grad_vec_sp, [x1, x2, x3]) 
+h = symbolic_integration(sp.nsimplify(sp.expand(grad_vec_sp)), [x1, x2, x3]) # type = <class 'sympy.core.add.Add'>
 with open('results.txt', 'w') as f:
     f.write(f"Total unique solutions found: {len(solutions)}\n\n")
     

@@ -26,8 +26,9 @@ gx = sp.Matrix([
 ])
 
 # Output function
+a = 1; b = 2; c = 1; theta = 3; k = 2; omega0 = 1
 h = -1.98789561912197*x2**2 - 0.66263184896675*x3**2
-# h = 3 * x2 ** 2 + x3 ** 2 # NOTE test output function
+h = 1.0*(theta * x2**2 + c * x3**2) + (-theta*(k/b)**2 - c * omega0)# NOTE test output function
 
 # Compute Lie derivatives
 Lfh = h.diff(x1)*fx[0] + h.diff(x2)*fx[1] + h.diff(x3)*fx[2]
