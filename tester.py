@@ -104,7 +104,11 @@ def original_system(t, x):
     x1_val, x2_val, x3_val = x
     
     # Apply sinusoidal control input
-    u_val = sinusoidal_input(t)
+    k1 = 1; k2 = 3; k3 = 3
+    v_val = -k1*h_func(*x) - k2*Lfh_func(*x) - k3*Lf2h_func(*x)
+
+
+    u_val = compute_u(x, v_val)
 
     # Transformn input from v to u
     # v_val = sinusoidal_input(t)
@@ -118,20 +122,24 @@ def original_system(t, x):
     return np.array([dx1dt, dx2dt, dx3dt])
 
 # Linearized system dynamics with transformed input
-def linearized_system(t, z, original_sol):
+def linearized_system(t, z):
     # At time t, get the corresponding x from the original system
     # We need this to compute the correct v
     
-    # Find the closest time point in original_sol.t
-    idx = np.argmin(np.abs(original_sol.t - t))
-    x_val = np.array([original_sol.y[0, idx], original_sol.y[1, idx], original_sol.y[2, idx]])
+    # # Find the closest time point in original_sol.t
+    # idx = np.argmin(np.abs(original_sol.t - t))
+    # x_val = np.array([original_sol.y[0, idx], original_sol.y[1, idx], original_sol.y[2, idx]])
     
-    # Transform the input
-    u_val = sinusoidal_input(t)
-    v_val = compute_v(x_val, u_val)
+    # # Transform the input
+    # u_val = sinusoidal_input(t)
+    # v_val = compute_v(x_val, u_val)
     
     # Chain of integrators dynamics
     z1, z2, z3 = z
+
+    k1 = 1; k2 = 3; k3 = 3
+    v_val = -k1*z1 - k2*z2 - k3*z3
+
     dz1dt = z2
     dz2dt = z3
     dz3dt = v_val
@@ -139,9 +147,9 @@ def linearized_system(t, z, original_sol):
     return np.array([dz1dt, dz2dt, dz3dt])
 
 # Simulation parameters
-t_span = (0, 15)
+t_span = (0, 1)
 t_eval = np.linspace(t_span[0], t_span[1], 10000)
-x0 = np.array([1.0, 0.5, 0.2])
+x0 = np.array([0, k/b, omega0])
 
 # First, simulate the original system
 sol_orig = solve_ivp(
@@ -161,7 +169,7 @@ z0 = np.array([
 
 # Then, simulate the linearized system using transformed inputs from original system
 sol_lin = solve_ivp(
-    lambda t, z: linearized_system(t, z, sol_orig),
+    lambda t, z: linearized_system(t, z),
     t_span,
     z0,
     t_eval=t_eval,

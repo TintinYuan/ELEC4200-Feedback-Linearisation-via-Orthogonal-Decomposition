@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 torch.manual_seed(88)
 np.random.seed(88)
 
-# Check if GPU is abailable and set the device
+# Check if GPU is available and set the device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device {device}")
 
@@ -126,7 +126,7 @@ for epoch in range(epochs):
     # No need to call .requires_grad_(True) here, done in the loss function for clarity
 
     # Calculate loss
-    loss, grad_loss, func_loss = pinn_loss(model, train_points, alpha=0.5) # NOTE: here the loss is the combined_loss!
+    loss, grad_loss, func_loss = pinn_loss(model, train_points, alpha=1.0) # NOTE: here the loss is the combined_loss!
 
     # Backpropagation and optimization
     optimizer.zero_grad() # Clear previous gradients
