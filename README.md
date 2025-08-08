@@ -20,6 +20,6 @@ This repository provides tools for computing coordinate transforms for feedback 
 
 - `UncanceledRational.py`: Class for performing arithmetic operations ($+,-,\times,\div$ etc.) with reducible rational polynomials.
 
-- <mark>`G_Optimisation_solver.py`</mark>: Gram-Schmidt orthogonalisation with bilinear optimisation solver for conservative fields (depends on `UncanceledRational.py`).
+- <mark>`G_Optimisation_solver.py`: Gram-Schmidt orthogonalisation with bilinear optimisation solver for conservative fields (depends on `UncanceledRational.py`).</mark>
 
 - `utils.py`: Utility functions for mathematical operations used in optimisation and orthogonalisation.
