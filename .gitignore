@@ -1,6 +1,8 @@
 /figures
 /.vscode
 /data
+/__pycache__
+/outcmaes
 *.pyc
 *.logdata
 *.dat
